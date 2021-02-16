@@ -1,0 +1,8 @@
+name: insect-biome
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python
+  - tqdm
