@@ -1,0 +1,15 @@
+cutadapt:
+    threads: 4
+primers:
+    forward: 
+        - "ACTGAHCCHGAYATRGCHTTYCC"
+        - "CTGAHCCHGAYATRGCHTTYCC"
+        - "TGAHCCHGAYATRGCHTTYCC"
+        - "GAHCCHGAYATRGCHTTYCC"
+    reverse: 
+        - "ACTGATCDGGRTGNCCRAARAAYCA"
+        - "CTGATCDGGRTGNCCRAARAAYCA"
+        - "TGATCDGGRTGNCCRAARAAYCA"
+        - "GATCDGGRTGNCCRAARAAYCA"
+paths:
+    raw_data_dir: "/proj/snic2020-16-248/NovaSeq_Jan2021/P19506"
