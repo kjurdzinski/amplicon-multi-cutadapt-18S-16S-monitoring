@@ -1,0 +1,20 @@
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3:4.9.2"
+
+configfile: "config/config.yaml"
+
+rule concat_samples:
+    """This rule concatenates sample fastq files from multiple lanes"""
+    output:
+        "data/{sample}_R{i}.fastq.gz"
+    params:
+        raw_data_dir=config["paths"]["raw_data_dir"],
+        tmp="$TMPDIR/{sample}_R{i}.fastq.gz""
+    shell:
+        """
+        # Get path to sequence files
+        files=$(cat {params.raw_data_dir}/{wildcards.sample}.lst | grep _{wildcards.i}_ | sort)
+        cat $files > {params.tmp}
+        mv {params.tmp} {output[0]}
+        """
