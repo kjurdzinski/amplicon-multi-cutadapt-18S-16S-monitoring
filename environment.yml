@@ -4,6 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python
-  - tqdm
-  - biopython
+  - python=3.8
+  - tqdm=4.56.2
+  - biopython=1.78
+  - cutadapt=3.2
+  - snakemake-minimal
