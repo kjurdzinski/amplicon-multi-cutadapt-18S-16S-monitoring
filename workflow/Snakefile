@@ -4,6 +4,9 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 
 configfile: "config/config.yaml"
 
+localrules:
+    concat_samples
+
 def fastq_files(data_dir, sample, i):
     # Open the .lst file for the sample
     with open("{}/{}.lst".format(data_dir, sample), 'r') as fh:
@@ -38,6 +41,8 @@ rule cutadapt:
     params:
         f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
         r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]])
+    resources:
+        runtime = lambda wildcards, attempt: attempt**2*60
     shell:
         """
         cutadapt -t {threads} {params.f} {params.r} -o {output[0]} -p {output[1]} {input[0]} {input[1]} > {log} 2>&1
