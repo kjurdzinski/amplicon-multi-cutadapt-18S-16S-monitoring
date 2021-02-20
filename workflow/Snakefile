@@ -2,18 +2,15 @@
 # with --use-conda --use-singularity
 singularity: "docker://continuumio/miniconda3:4.9.2"
 
+# Set default config file
 configfile: "config/config.yaml"
 
-localrules:
-    concat_samples
+localrules: concat_samples, all
 
 def read_samples(sample_list):
-    samples = {}
-    with open(sample_list, 'r') as fh:
-        for line in fh:
-            sample_id = line.split("\t")[0]
-            samples[sample_id] = ""
-    return samples
+    import pandas as pd
+    df = pd.read_csv(sample_list, sep="\t", index_col=0, header=None)
+    return df.to_dict()[1]
 
 def fastq_files(data_dir, sample, i):
     # Open the .lst file for the sample
