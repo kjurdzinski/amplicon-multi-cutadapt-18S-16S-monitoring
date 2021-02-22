@@ -37,7 +37,7 @@ def main(args):
     else:
         out = args.outfile
     records = read_seq_file(args.infile)
-    df = get_bold_data(records)
+    df = get_bold_data(records, args.num_recs)
     df.to_csv(out, sep="\t")
 
 
