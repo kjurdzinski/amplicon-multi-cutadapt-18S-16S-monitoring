@@ -52,12 +52,13 @@ rule download_bold_data:
         "resources/bold/bold.fasta"
     output:
         "resources/bold/bold.info.tsv"
+    log: "logs/resources/bold_taxonomy.log"
     params:
         num_recs = 100
     shell:
         """
         python src/bold_taxonomy.py {input[0]} \
-            --outfile {output[0]} --num_recs {params.num_recs}
+            --outfile {output[0]} --num_recs {params.num_recs} > {log} 2>&1
         """
 
 rule concat_samples:
