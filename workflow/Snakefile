@@ -1,3 +1,5 @@
+import os
+
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
 singularity: "docker://continuumio/miniconda3:4.9.2"
@@ -5,7 +7,7 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Set default config file
 configfile: "config/config.yaml"
 
-localrules: concat_samples, all
+localrules: concat_samples, all, download_bold, filter_bold
 
 def read_samples(sample_list):
     import pandas as pd
@@ -27,7 +29,37 @@ samples = read_samples(config["sample_list"])
 rule all:
     input:
         expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
-            sample = samples.keys(), i = [1,2])
+            sample = samples.keys(), i = [1,2]),
+        "resources/bold/bold.filtered.fasta"
+
+rule download_bold:
+    output:
+        "resources/bold/bold.fasta"
+    params:
+        tmpdir = "$TMPDIR/bold",
+        taxa = " ".join(config["taxa"]),
+        outdir = lambda wildcards, output: os.path.dirname(output[0])
+    log: "logs/resources/bold_dl.log"
+    shell:
+        """
+        python src/bold_dl.py --taxa {params.taxa} -o {params.tmpdir} > {log} 2>&1
+        cat {params.tmpdir}/*.fasta > {output[0]}
+        """
+
+rule filter_bold:
+    input:
+        "resources/bold/bold.fasta"
+    output:
+        "resources/bold/bold.filtered.fasta"
+    params:
+        gene = config["gene"]
+    run:
+        from Bio.SeqIO import parse
+        with open(input[0], 'r') as fhin, open(output[0], 'w') as fhout:
+            for record in parse(fhin, "fasta"):
+                gene = (record.id).split("|")[2]
+                if params.gene in gene:
+                    fhout.write(">{}\n{}\n".format(record.id, str(record.seq)))
 
 rule concat_samples:
     """This rule concatenates sample fastq files from multiple lanes"""
@@ -55,8 +87,8 @@ rule cutadapt:
         f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
         r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]])
     resources:
-        runtime = lambda wildcards, attempt: attempt**2*60
+        runtime = lambda wildcards, attempt: attempt**2*30
     shell:
         """
-        cutadapt -t {threads} {params.f} {params.r} -o {output[0]} -p {output[1]} {input[0]} {input[1]} > {log} 2>&1
+        cutadapt -j {threads} {params.f} {params.r} -o {output[0]} -p {output[1]} {input[0]} {input[1]} > {log} 2>&1
         """
