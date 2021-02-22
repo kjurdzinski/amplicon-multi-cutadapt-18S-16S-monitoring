@@ -30,7 +30,7 @@ rule all:
     input:
         expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
             sample = samples.keys(), i = [1,2]),
-        "resources/bold/bold.filtered.fasta"
+        "resources/bold/bold.info.tsv"
 
 rule download_bold:
     output:
@@ -46,20 +46,19 @@ rule download_bold:
         cat {params.tmpdir}/*.fasta > {output[0]}
         """
 
-rule filter_bold:
+rule download_bold_data:
+    "Downloads information for sequences contained in bold fasta file"
     input:
         "resources/bold/bold.fasta"
     output:
-        "resources/bold/bold.filtered.fasta"
+        "resources/bold/bold.info.tsv"
     params:
-        gene = config["gene"]
-    run:
-        from Bio.SeqIO import parse
-        with open(input[0], 'r') as fhin, open(output[0], 'w') as fhout:
-            for record in parse(fhin, "fasta"):
-                gene = (record.id).split("|")[2]
-                if params.gene in gene:
-                    fhout.write(">{}\n{}\n".format(record.id, str(record.seq)))
+        num_recs = 100
+    shell:
+        """
+        python src/bold_taxonomy.py {input[0]} \
+            --outfile {output[0]} --num_recs {params.num_recs}
+        """
 
 rule concat_samples:
     """This rule concatenates sample fastq files from multiple lanes"""
