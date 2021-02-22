@@ -10,3 +10,4 @@ dependencies:
   - cutadapt=3.2
   - snakemake-minimal=5.32.2
   - pandas=1.2.2
+  - multiqc=1.9
