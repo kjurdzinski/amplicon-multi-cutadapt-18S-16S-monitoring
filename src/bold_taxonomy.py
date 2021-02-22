@@ -67,7 +67,9 @@ def main(args):
     records = read_seq_file(args.infile)
     d = get_bold_data(records, args.num_recs)
     df = pd.DataFrame(d)
-    df.T.to_csv(out, sep="\t")
+    df = df.T
+    df.index.name = "seq_id"
+    df.to_csv(out, sep="\t")
 
 
 if __name__ == "__main__":
