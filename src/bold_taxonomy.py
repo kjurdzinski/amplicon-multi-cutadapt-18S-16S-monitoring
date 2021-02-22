@@ -9,7 +9,7 @@ import sys
 
 def get_bold_records(seq_ids):
     url_base = "http://boldsystems.org/index.php/API_Public/specimen?"
-    url = f"{url_base}ids={"|".join(seq_ids)}&format=tsv"
+    url = "{}ids={}&format=tsv".format(url_base, "|".join(seq_ids))
     f, msg = request.urlretrieve(url)
     return f
 
