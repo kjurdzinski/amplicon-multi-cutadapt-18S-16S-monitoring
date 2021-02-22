@@ -7,7 +7,7 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Set default config file
 configfile: "config/config.yaml"
 
-localrules: concat_samples, all, download_bold, filter_bold
+localrules: concat_samples, all, download_bold, download_bold_data
 
 def read_samples(sample_list):
     import pandas as pd
