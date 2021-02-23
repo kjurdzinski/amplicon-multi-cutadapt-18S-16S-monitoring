@@ -4,6 +4,7 @@ taxa:
 gene: "COI"
 cutadapt:
     threads: 4
+    minimum_length: 50
 primers:
     forward: 
         - "CCHGAYATRGCHTTYCCHCG"
