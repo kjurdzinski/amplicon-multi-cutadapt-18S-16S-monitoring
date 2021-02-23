@@ -1,6 +1,7 @@
 sample_list: "config/benchmark_samples.tsv"
 cutadapt:
     threads: 4
+    minimum_length: 50
 primers:
     forward: 
         - "ACTGAHCCHGAYATRGCHTTYCC"
