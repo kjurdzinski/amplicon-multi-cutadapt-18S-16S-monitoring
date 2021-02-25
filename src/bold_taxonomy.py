@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 import pandas as pd
 import sys
+import os
 
 
 def get_bold_records(seq_ids):
@@ -38,7 +39,15 @@ def read_seq_file(f):
     return records
 
 
+
+def is_file_empty(file_path):
+    # Check if file exist and it is empty
+    return os.path.exists(file_path) and os.stat(file_path).st_size == 0
+
+
 def read_existing(f, records):
+    if is_file_empty(f):
+        return records
     df = pd.read_csv(f, sep="\t", index_col=0, header=0)
     x = len(records)
     records = [x for x in records if not f"{x.split('|')[0]}" in df.index]
@@ -57,7 +66,7 @@ def get_bold_data(records, chunksize, outfile, resume):
     :return: dictionary with stored data
     """
     if resume:
-        records = read_existing(outfile, records)
+        records = read_existing(resume, records)
         i = 1
     else:
         i = 0
@@ -87,8 +96,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("infile", type=str, help="Input sequence file")
     parser.add_argument("outfile", type=str, help="Output file with seq info")
-    parser.add_argument("--resume", action="store_true",
-                        help="Resume from already downloaded data in outfile")
+    parser.add_argument("--resume", type=str,
+                        help="Resume from already downloaded data")
     parser.add_argument("--num_recs", default=10, type=int,
                         help="Number of records to fetch at a time. "
                              "Defaults to 10")
