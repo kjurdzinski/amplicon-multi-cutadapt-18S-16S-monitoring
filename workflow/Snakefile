@@ -7,7 +7,7 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Set default config file
 configfile: "config/config.yaml"
 
-localrules: concat_samples, all, download_bold, download_bold_data
+localrules: concat_samples, all, download_bold
 
 def read_samples(sample_list):
     import pandas as pd
@@ -34,34 +34,19 @@ rule all:
 
 rule download_bold:
     output:
-        "resources/bold/bold.fasta"
+        "resources/bold/bold_info.tsv",
+        "resources/bold/bold_seqs.fasta"
+    log:
+        "logs/bold/dl.log"
     params:
-        tmpdir = "$TMPDIR/bold",
-        taxa = " ".join(config["taxa"]),
-        outdir = lambda wildcards, output: os.path.dirname(output[0])
-    log: "logs/resources/bold_dl.log"
+        url = config["database"]["url"]
     shell:
         """
-        python src/bold_dl.py --taxa {params.taxa} -o {params.tmpdir} > {log} 2>&1
-        cat {params.tmpdir}/*.fasta > {output[0]}
-        """
-
-rule download_bold_info:
-    "Downloads information for sequences contained in bold fasta file"
-    input:
-        "resources/bold/bold.fasta"
-    output:
-        "resources/bold/bold.info.tsv"
-    log: "logs/resources/bold_info.log"
-    params:
-        num_recs = 100,
-        resume_file = "resources/bold/.bold.info.tsv"
-    shell:
-        """
-        touch {params.resume_file}
-        python src/bold_info.py --resume {params.resume_file} \
-            --num_recs {params.num_recs} {input[0]} {params.resume_file} > {log} 2>&1
-        mv {params.resume_file} {output[0]}
+        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
+        unzip -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
+        mv $TMPDIR/sequence.txt {output[1]}
+        mv $TMPDIR/occurrences.txt {output[0]}
+        rm $TMPDIR/bold.zip
         """
 
 rule concat_samples:
