@@ -43,7 +43,7 @@ rule download_bold:
     shell:
         """
         curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        unzip -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
+        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
         mv $TMPDIR/sequence.txt {output[1]}
         mv $TMPDIR/occurrences.txt {output[0]}
         rm $TMPDIR/bold.zip
