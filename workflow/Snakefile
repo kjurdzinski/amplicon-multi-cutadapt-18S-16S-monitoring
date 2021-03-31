@@ -1,0 +1,141 @@
+import os
+
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3:4.9.2"
+
+# Set default config file
+configfile: "config/config.yaml"
+
+localrules: concat_samples, all, download_bold
+
+def read_samples(sample_list):
+    import pandas as pd
+    df = pd.read_csv(sample_list, sep="\t", index_col=0, header=None)
+    return df.to_dict()[1]
+
+def fastq_files(data_dir, sample, i):
+    # Open the .lst file for the sample
+    with open("{}/{}.lst".format(data_dir, sample), 'r') as fh:
+        files = []
+        for line in fh:
+            if f"_R{i}_" in line:
+                files.append("{}/{}".format(data_dir, line.rstrip()))
+    return " ".join(sorted(files))
+
+# Read samples from file
+samples = read_samples(config["sample_list"])
+
+rule all:
+    input:
+        expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
+            sample = samples.keys(), i = [1,2]),
+        "resources/bold/bold_seqs.filtered.fasta"
+
+rule download_bold:
+    output:
+        "resources/bold/bold_info.tsv",
+        "resources/bold/bold_seqs.txt"
+    log:
+        "logs/bold/dl.log"
+    params:
+        url = config["database"]["url"]
+    shell:
+        """
+        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
+        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
+        mv $TMPDIR/sequence.txt {output[1]}
+        mv $TMPDIR/occurrences.txt {output[0]}
+        rm $TMPDIR/bold.zip
+        """
+
+rule extract_bold_seqs:
+    """
+    Extract sequences matching certain genes from the bold sequence file
+    """
+    input:
+        "resources/bold/bold_seqs.txt"
+    output:
+        temp("resources/bold/bold_seqs.{gene}.fasta")
+    script:
+        "scripts/common.py"
+
+rule extract_bold_taxa:
+    """
+    Extract record ids based on taxonomy
+    """
+    input:
+        "resources/bold/bold_info.tsv"
+    output:
+        temp("resources/bold/{taxa}.ids")
+    script:
+        "scripts/common.py"
+
+rule filter_bold:
+    input:
+        ids = expand("resources/bold/{taxa}.ids",
+            taxa = config["database"]["taxa"]),
+        seq = expand("resources/bold/bold_seqs.{gene}.fasta",
+            gene = config["database"]["gene"])
+    output:
+        "resources/bold/bold_seqs.filtered.fasta"
+    conda:
+        "envs/seqtk.yml"
+    params:
+        tmpdir = "$TMPDIR",
+        ids = "$TMPDIR/ids",
+        seq = "$TMPDIR/seq"
+    shell:
+        """
+        cat {input.ids} > {params.ids}
+        cat {input.seq} > {params.seq}
+        seqtk subseq {params.seq} {params.ids} > {params.tmpdir}/seqs.fa
+        mv {params.tmpdir}/seqs.fa {output}
+        """
+
+rule cluster_bold:
+    input:
+        "resources/bold/bold_seqs.fasta"
+    output:
+        touch("resources/bold/bold_seqs.clust.fasta")
+    conda:
+        "envs/vsearch.yml"
+    shell:
+        """
+        vsearch -v
+        """
+
+rule concat_samples:
+    """This rule concatenates sample fastq files from multiple lanes"""
+    output:
+        "data/{sample}_R{i}.fastq.gz"
+    params:
+        tmp="$TMPDIR/{sample}_R{i}.fastq.gz",
+        files=lambda wildcards: fastq_files(config["paths"]["raw_data_dir"], wildcards.sample, wildcards.i),
+    shell:
+        """
+        cat {params.files} > {params.tmp}
+        mv {params.tmp} {output[0]}
+        """
+
+rule cutadapt:
+    input:
+        "data/{sample}_R1.fastq.gz",
+        "data/{sample}_R2.fastq.gz"
+    output:
+        "results/cutadapt/{sample}_R1.cutadapt.fastq.gz",
+        "results/cutadapt/{sample}_R2.cutadapt.fastq.gz"
+    log: "logs/cutadapt/{sample}.log"
+    threads: config["cutadapt"]["threads"]
+    params:
+        f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
+        r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]]),
+        min_len=config["cutadapt"]["minimum_length"]
+    resources:
+        runtime = lambda wildcards, attempt: attempt**2*30
+    shell:
+        """
+        cutadapt -j {threads} {params.f} {params.r} -o {output[0]} \
+            -p {output[1]} --minimum-length={params.min_len} \
+             {input[0]} {input[1]} > {log} 2>&1
+        """
