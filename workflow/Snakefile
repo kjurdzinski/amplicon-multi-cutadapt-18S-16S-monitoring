@@ -65,10 +65,10 @@ rule filter_bold:
     script:
         "scripts/common.py"
 
-rule filter_bold:
+rule cluster_bold:
     input:
         ids = expand("resources/bold/{taxa}.ids",
-            taxa = config["database"]["taxa"]),
+            taxa = config["database"]["phyla"]),
         seq = expand("resources/bold/bold_seqs.{gene}.fasta",
             gene = config["database"]["gene"])
     output:
@@ -85,18 +85,6 @@ rule filter_bold:
         cat {input.seq} > {params.seq}
         seqtk subseq {params.seq} {params.ids} > {params.tmpdir}/seqs.fa
         mv {params.tmpdir}/seqs.fa {output}
-        """
-
-rule cluster_bold:
-    input:
-        "resources/bold/bold_seqs.fasta"
-    output:
-        touch("resources/bold/bold_seqs.clust.fasta")
-    conda:
-        "envs/vsearch.yml"
-    shell:
-        """
-        vsearch -v
         """
 
 rule concat_samples:
