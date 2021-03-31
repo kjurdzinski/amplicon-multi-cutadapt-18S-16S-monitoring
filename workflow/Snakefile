@@ -30,7 +30,7 @@ rule all:
     input:
         expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
             sample = samples.keys(), i = [1,2]),
-        "resources/bold/bold.info.tsv"
+        "resources/bold/bold_seqs.filtered.fasta"
 
 rule download_bold:
     output:
