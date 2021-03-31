@@ -61,16 +61,17 @@ rule filter_bold:
         fasta = "resources/bold/bold_filtered.fasta",
     params:
         genes = config["database"]["gene"],
-        phyla = config["database"]["phyla"]
+        phyla = config["database"]["phyla"],
+        tmpf = "$TMPDIR/bold_filtered.fasta"
     script:
         "scripts/common.py"
 
 rule cluster_bold:
+    """
+    Takes the info and fasta file
+    """
     input:
-        ids = expand("resources/bold/{taxa}.ids",
-            taxa = config["database"]["phyla"]),
-        seq = expand("resources/bold/bold_seqs.{gene}.fasta",
-            gene = config["database"]["gene"])
+        fasta="resources/bold/bold_filtered.fasta"
     output:
         "resources/bold/bold_seqs.filtered.fasta"
     conda:

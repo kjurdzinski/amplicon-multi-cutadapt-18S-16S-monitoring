@@ -3,13 +3,17 @@
 import pandas as pd
 from tqdm import tqdm
 import sys
+import shutil
 
 
-def write_seqs(seq_df, outfile):
+def write_seqs(seq_df, outfile, tmpfile):
     ranks = ["phylum", "class", "order", "family", "genus", "species"]
+    # Sort sequences by species
     seq_df = seq_df.sort_values("species")
-    with open(outfile, 'w') as fhout:
-        for index in tqdm(seq_df.index, desc=f"Writing sequences to {outfile}",
+    tmpfile = os.path.expandvars(tmpfile)
+    outfile = os.absp
+    with open(tmpfile, 'w') as fhout:
+        for index in tqdm(seq_df.index, desc=f"Writing sequences to {tmpfile}",
                           unit=" seqs"):
             seq = seq_df.loc[index, "seq"]
             record_id = seq_df.loc[index, "record_id"]
@@ -18,6 +22,8 @@ def write_seqs(seq_df, outfile):
                 continue
             desc = ";".join([seq_df.loc[index, x] for x in ranks])
             fhout.write(f">{record_id} {desc}\n{seq}\n")
+    sys.stderr.write(f"Moving {tmpfile} to {outfile}\n")
+    shutil.move(tmpfile, outfile)
 
 
 def filter_bold(sm):
@@ -53,7 +59,7 @@ def filter_bold(sm):
     seq_df.drop(["seq"], axis=1).head().to_csv(sm.output.info, header=True,
                                                index=False, sep="\t")
     # Write seqs to file
-    write_seqs(seq_df, sm.output.fasta)
+    write_seqs(seq_df, sm.output.fasta, sm.params.tmpf)
 
 
 def main(sm):
