@@ -1,18 +1,15 @@
 sample_list: "config/benchmark_samples.tsv"
+taxa:
+    - "Arthropoda"
+gene: "COI"
 cutadapt:
     threads: 4
     minimum_length: 50
 primers:
     forward: 
-        - "ACTGAHCCHGAYATRGCHTTYCC"
-        - "CTGAHCCHGAYATRGCHTTYCC"
-        - "TGAHCCHGAYATRGCHTTYCC"
-        - "GAHCCHGAYATRGCHTTYCC"
+        - "CCHGAYATRGCHTTYCCHCG"
     reverse: 
-        - "ACTGATCDGGRTGNCCRAARAAYCA"
-        - "CTGATCDGGRTGNCCRAARAAYCA"
-        - "TGATCDGGRTGNCCRAARAAYCA"
-        - "GATCDGGRTGNCCRAARAAYCA"
+        - "CDGGRTGNCCRAARAAYCA"
 paths:
     raw_data_dir: "/proj/snic2020-16-248/NovaSeq_Jan2021/P19506"
 database:
