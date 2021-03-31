@@ -59,8 +59,6 @@ rule filter_bold:
     output:
         info = "resources/bold/bold_info_filtered.tsv",
         fasta = "resources/bold/bold_filtered.fasta",
-        #sp_map = "resources/bold/bold_species_map.tsv",
-        #sp_dir = directory("resources/bold/species_fasta")
     params:
         genes = config["database"]["gene"],
         phyla = config["database"]["phyla"]
