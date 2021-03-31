@@ -56,7 +56,7 @@ rule extract_bold_seqs:
     input:
         "resources/bold/bold_seqs.txt"
     output:
-        "resources/bold/bold_seqs.{gene}.fasta"
+        temp("resources/bold/bold_seqs.{gene}.fasta")
     script:
         "scripts/common.py"
 
@@ -67,7 +67,7 @@ rule extract_bold_taxa:
     input:
         "resources/bold/bold_info.tsv"
     output:
-        "resources/bold/{taxa}.ids"
+        temp("resources/bold/{taxa}.ids")
     script:
         "scripts/common.py"
 
