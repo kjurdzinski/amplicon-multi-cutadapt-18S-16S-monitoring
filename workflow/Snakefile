@@ -35,7 +35,7 @@ rule all:
 rule download_bold:
     output:
         "resources/bold/bold_info.tsv",
-        "resources/bold/bold_seqs.fasta"
+        "resources/bold/bold_seqs.txt"
     log:
         "logs/bold/dl.log"
     params:
@@ -47,6 +47,62 @@ rule download_bold:
         mv $TMPDIR/sequence.txt {output[1]}
         mv $TMPDIR/occurrences.txt {output[0]}
         rm $TMPDIR/bold.zip
+        """
+
+rule extract_bold_seqs:
+    """
+    Extract sequences matching certain genes from the bold sequence file
+    """
+    input:
+        "resources/bold/bold_seqs.txt"
+    output:
+        "resources/bold/bold_seqs.{gene}.fasta"
+    script:
+        "scripts/common.py"
+
+rule extract_bold_taxa:
+    """
+    Extract record ids based on taxonomy
+    """
+    input:
+        "resources/bold/bold_info.tsv"
+    output:
+        "resources/bold/{taxa}.ids"
+    script:
+        "scripts/common.py"
+
+rule filter_bold:
+    input:
+        ids = expand("resources/bold/{taxa}.ids",
+            taxa = config["database"]["taxa"]),
+        seq = expand("resources/bold/bold_seqs.{gene}.fasta",
+            gene = config["database"]["gene"])
+    output:
+        "resources/bold/bold_seqs.filtered.fasta"
+    conda:
+        "envs/seqtk.yml"
+    params:
+        tmpdir = "$TMPDIR",
+        ids = "$TMPDIR/ids",
+        seq = "$TMPDIR/seq"
+    shell:
+        """
+        cat {input.ids} > {params.ids}
+        cat {input.seq} > {params.seq}
+        seqtk subseq {params.seq} {params.ids} > {params.tmpdir}/seqs.fa
+        mv {params.tmpdir}/seqs.fa {output}
+        """
+
+rule cluster_bold:
+    input:
+        "resources/bold/bold_seqs.fasta"
+    output:
+        touch("resources/bold/bold_seqs.clust.fasta")
+    conda:
+        "envs/vsearch.yml"
+    shell:
+        """
+        vsearch -v
         """
 
 rule concat_samples:
