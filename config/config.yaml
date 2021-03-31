@@ -19,5 +19,5 @@ database:
     url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
     gene:
         - "COI-5P"
-    taxa:
+    phyla:
         - "Arthropoda"
