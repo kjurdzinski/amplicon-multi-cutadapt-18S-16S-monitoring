@@ -17,5 +17,7 @@ paths:
     raw_data_dir: "/proj/snic2020-16-248/NovaSeq_Jan2021/P19506"
 database:
     url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
+    gene:
+        - "COI-5P"
     taxa:
         - "Arthropoda"
