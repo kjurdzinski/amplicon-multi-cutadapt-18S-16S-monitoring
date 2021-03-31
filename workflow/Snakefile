@@ -49,25 +49,21 @@ rule download_bold:
         rm $TMPDIR/bold.zip
         """
 
-rule extract_bold_seqs:
-    """
-    Extract sequences matching certain genes from the bold sequence file
-    """
-    input:
-        "resources/bold/bold_seqs.txt"
-    output:
-        temp("resources/bold/bold_seqs.{gene}.fasta")
-    script:
-        "scripts/common.py"
-
-rule extract_bold_taxa:
+rule filter_bold:
     """
     Extract record ids based on taxonomy
     """
     input:
-        "resources/bold/bold_info.tsv"
+        "resources/bold/bold_info.tsv",
+        "resources/bold/bold_seqs.txt"
     output:
-        temp("resources/bold/{taxa}.ids")
+        info = "resources/bold/bold_info_filtered.tsv",
+        fasta = "resources/bold/bold_filtered.fasta",
+        #sp_map = "resources/bold/bold_species_map.tsv",
+        #sp_dir = directory("resources/bold/species_fasta")
+    params:
+        genes = config["database"]["gene"],
+        phyla = config["database"]["phyla"]
     script:
         "scripts/common.py"
 
