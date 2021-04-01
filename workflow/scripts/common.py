@@ -56,7 +56,7 @@ def filter_bold(sm):
                       how="inner")
     sys.stderr.write(f"{seq_df.shape[0]} sequence records remaining\n")
     # Write to file
-    seq_df.drop(["seq"], axis=1).head().to_csv(sm.output.info, header=True,
+    seq_df.drop(["seq"], axis=1).to_csv(sm.output.info, header=True,
                                                index=False, sep="\t")
     # Write seqs to file
     write_seqs(seq_df, sm.output.fasta, sm.params.tmpf)
