@@ -78,12 +78,16 @@ rule cluster_bold:
         "logs/bold/cluster.log"
     conda:
         "envs/cluster.yml"
+    threads: 10
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 10
     params:
         pid = config["database"]["pid"],
         src = "scripts/cluster_bold.py"
     shell:
         """
-        python {params.src} --pid {params.pid} {input.fasta} {output.fasta} > {log} 2>&1 
+        python {params.src} --threads {threads} --pid {params.pid} \
+            {input.fasta} {output.fasta} > {log} 2>&1 
         """
 
 rule concat_samples:
