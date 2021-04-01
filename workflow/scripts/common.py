@@ -4,14 +4,14 @@ import pandas as pd
 from tqdm import tqdm
 import sys
 import shutil
-
+import os
 
 def write_seqs(seq_df, outfile, tmpfile):
     ranks = ["phylum", "class", "order", "family", "genus", "species"]
     # Sort sequences by species
     seq_df = seq_df.sort_values("species")
     tmpfile = os.path.expandvars(tmpfile)
-    outfile = os.absp
+    outfile = os.path.abspath(outfile)
     with open(tmpfile, 'w') as fhout:
         for index in tqdm(seq_df.index, desc=f"Writing sequences to {tmpfile}",
                           unit=" seqs"):
