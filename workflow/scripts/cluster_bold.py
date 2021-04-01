@@ -9,6 +9,14 @@ import os
 
 
 def cluster_records(records, pid):
+    """
+    Takes a list of sequence records, writes to a temporary file and
+    clusters them with vsearch.
+
+    :param records: Sequence records
+    :param pid: Percent id to cluster by
+    :return:
+    """
     clustered_records = []
     if len(records) == 1:
         return records
@@ -32,6 +40,14 @@ def cluster_records(records, pid):
 
 
 def get_species_clusters(f, pid):
+    """
+    Iterates a fasta file sorted by species and clusters sequence for each
+    species
+
+    :param f: input fasta file
+    :param pid: percent identity to cluster by
+    :return: cluster dictionary (species as keys, records as values)
+    """
     sp_groups = {}
     clusters = {}
     seqs = 0
