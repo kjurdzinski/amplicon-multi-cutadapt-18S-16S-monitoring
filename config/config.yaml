@@ -13,6 +13,8 @@ primers:
 paths:
     raw_data_dir: "/proj/snic2020-16-248/NovaSeq_Jan2021/P19506"
 database:
+    # Percent identity to cluster seqs in the database by
+    pid: 1.0
     url: "https://hosted-datasets.gbif.org/ibol/ibol.zip"
     gene:
         - "COI-5P"
