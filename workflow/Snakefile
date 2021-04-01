@@ -71,21 +71,19 @@ rule cluster_bold:
     Takes the info and fasta file
     """
     input:
-        fasta="resources/bold/bold_filtered.fasta"
+        fasta = "resources/bold/bold_filtered.fasta"
     output:
-        "resources/bold/bold_seqs.filtered.fasta"
+        fasta = "resources/bold/bold_clustered.fasta"
+    log:
+        "logs/bold/cluster.log"
     conda:
-        "envs/seqtk.yml"
+        "envs/cluster.yml"
     params:
-        tmpdir = "$TMPDIR",
-        ids = "$TMPDIR/ids",
-        seq = "$TMPDIR/seq"
+        pid = config["database"]["pid"],
+        src = "scripts/cluster_bold.py"
     shell:
         """
-        cat {input.ids} > {params.ids}
-        cat {input.seq} > {params.seq}
-        seqtk subseq {params.seq} {params.ids} > {params.tmpdir}/seqs.fa
-        mv {params.tmpdir}/seqs.fa {output}
+        python {params.src} --pid {params.pid} {input.fasta} {output.fasta} > {log} 2>&1 
         """
 
 rule concat_samples:
@@ -110,6 +108,7 @@ rule cutadapt:
         "results/cutadapt/{sample}_R2.cutadapt.fastq.gz"
     log: "logs/cutadapt/{sample}.log"
     threads: config["cutadapt"]["threads"]
+    conda: "envs/cutadapt.yml"
     params:
         f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
         r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]]),
