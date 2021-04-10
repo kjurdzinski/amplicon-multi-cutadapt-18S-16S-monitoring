@@ -69,7 +69,7 @@ def get_species_clusters(f, pid, threads):
             sp = species
             sp_groups[species] = [record]
     # Cluster the final sequences
-    clusters[sp] = cluster_records(sp_groups[sp], pid)
+    clusters[sp] = cluster_records(sp_groups[sp], pid, threads)
     seqs += len(clusters[sp])
     sys.stderr.write(f"Records read: {i+1}\n"
                      f"Species clustered: {len(clusters)}\n"
