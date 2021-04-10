@@ -29,8 +29,8 @@ def cluster_records(records, pid, threads):
     # Run vsearch on tempfile
     subprocess.call(
         ['vsearch', '--cluster_fast', f.name, '--id',
-         str(pid), '--consout', cons_out.name, '--notrunclabels', "--threads"],
-        threads, stdout=f_null, stderr=f_null)
+         str(pid), '--consout', cons_out.name, '--notrunclabels', "--threads",
+         str(threads)], stdout=f_null, stderr=f_null)
     # Read file with consensus sequences
     for record in parse(cons_out.name, 'fasta'):
         clustered_records.append(record)
