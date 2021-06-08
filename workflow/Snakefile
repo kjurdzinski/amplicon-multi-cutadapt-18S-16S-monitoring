@@ -14,20 +14,21 @@ def read_samples(datadir):
     import re
     sample_re = re.compile("(.+)_R([12])_(.+).fastq.gz")
     samples = {}
-    for sample_id in sample_df.index:
-        user_id = sample_df.loc[sample_id, "usr_id"]
-        # Locate all read pairs for this sample
-        R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
-        R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
-        for i, f1 in enumerate(R1_files):
-            f2 = R2_files[i]
+    R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
+    R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
+    for i, f1 in enumerate(R1_files):
+        f2 = R2_files[i]
+        try:
             prefix, read, suffix = sample_re.search(f1).groups()
-            sample = os.path.basename(prefix)
-            samples[sample] = {'R1': f1, 'R2': f2}
+        except AttributeError:
+            print(f1)
+            continue
+        sample = os.path.basename(prefix)
+        samples[sample] = {'R1': f1, 'R2': f2}
     return samples
 
 # Read samples from file
-samples = read_samples(config["raw_data_dir"])
+samples = read_samples(config["paths"]["raw_data_dir"])
 
 rule all:
     input:
