@@ -31,13 +31,8 @@ samples = read_samples(config["raw_data_dir"])
 
 rule all:
     input:
-        expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
+        expand("results/cutadapt/{sample}_R{i}.1st.fastq.gz",
             sample = samples.keys(), i = [1,2])
-
-rule link_samples:
-    output:
-        "data/{sample}_{lane}_R1.fastq.gz",
-        "data/{sample}_{lane}_R2.fastq.gz"
 
 rule cutadapt1:
     input:
