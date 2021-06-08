@@ -9,7 +9,7 @@ configfile: "config/config.yaml"
 
 localrules: all
 
-def stage_files(sample_info, datadir):
+def read_samples(datadir):
     from glob import glob
     import re
     sample_re = re.compile("(.+)_R([12])_(.+).fastq.gz")
