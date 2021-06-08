@@ -7,110 +7,46 @@ singularity: "docker://continuumio/miniconda3:4.9.2"
 # Set default config file
 configfile: "config/config.yaml"
 
-localrules: concat_samples, all, download_bold
+localrules: all
 
-def read_samples(sample_list):
-    import pandas as pd
-    df = pd.read_csv(sample_list, sep="\t", index_col=0, header=None)
-    return df.to_dict()[1]
-
-def fastq_files(data_dir, sample, i):
-    # Open the .lst file for the sample
-    with open("{}/{}.lst".format(data_dir, sample), 'r') as fh:
-        files = []
-        for line in fh:
-            if f"_R{i}_" in line:
-                files.append("{}/{}".format(data_dir, line.rstrip()))
-    return " ".join(sorted(files))
+def stage_files(sample_info, datadir):
+    from glob import glob
+    import re
+    sample_re = re.compile("(.+)_R([12])_(.+).fastq.gz")
+    samples = {}
+    for sample_id in sample_df.index:
+        user_id = sample_df.loc[sample_id, "usr_id"]
+        # Locate all read pairs for this sample
+        R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
+        R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
+        for i, f1 in enumerate(R1_files):
+            f2 = R2_files[i]
+            prefix, read, suffix = sample_re.search(f1).groups()
+            sample = os.path.basename(prefix)
+            samples[sample] = {'R1': f1, 'R2': f2}
+    return samples
 
 # Read samples from file
-samples = read_samples(config["sample_list"])
+samples = read_samples(config["raw_data_dir"])
 
 rule all:
     input:
         expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
-            sample = samples.keys(), i = [1,2]),
-        "resources/bold/bold_seqs.filtered.fasta"
+            sample = samples.keys(), i = [1,2])
 
-rule download_bold:
+rule link_samples:
     output:
-        "resources/bold/bold_info.tsv",
-        "resources/bold/bold_seqs.txt"
-    log:
-        "logs/bold/dl.log"
-    params:
-        url = config["database"]["url"]
-    shell:
-        """
-        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
-        mv $TMPDIR/sequence.txt {output[1]}
-        mv $TMPDIR/occurrences.txt {output[0]}
-        rm $TMPDIR/bold.zip
-        """
+        "data/{sample}_{lane}_R1.fastq.gz",
+        "data/{sample}_{lane}_R2.fastq.gz"
 
-rule filter_bold:
-    """
-    Extract record ids based on taxonomy
-    """
+rule cutadapt1:
     input:
-        "resources/bold/bold_info.tsv",
-        "resources/bold/bold_seqs.txt"
+        R1 = lambda wildcards: samples[wildcards.sample]["R1"],
+        R2 = lambda wildcards: samples[wildcards.sample]["R2"]
     output:
-        info = "resources/bold/bold_info_filtered.tsv",
-        fasta = "resources/bold/bold_filtered.fasta",
-    params:
-        genes = config["database"]["gene"],
-        phyla = config["database"]["phyla"],
-        tmpf = "$TMPDIR/bold_filtered.fasta"
-    script:
-        "scripts/common.py"
-
-rule cluster_bold:
-    """
-    Takes the info and fasta file
-    """
-    input:
-        fasta = "resources/bold/bold_filtered.fasta"
-    output:
-        fasta = "resources/bold/bold_clustered.fasta"
-    log:
-        "logs/bold/cluster.log"
-    conda:
-        "envs/cluster.yml"
-    threads: 10
-    resources:
-        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 10
-    params:
-        pid = config["database"]["pid"],
-        src = "scripts/cluster_bold.py"
-    shell:
-        """
-        python {params.src} --threads {threads} --pid {params.pid} \
-            {input.fasta} {output.fasta} > {log} 2>&1 
-        """
-
-rule concat_samples:
-    """This rule concatenates sample fastq files from multiple lanes"""
-    output:
-        "data/{sample}_R{i}.fastq.gz"
-    params:
-        tmp="$TMPDIR/{sample}_R{i}.fastq.gz",
-        files=lambda wildcards: fastq_files(config["paths"]["raw_data_dir"], wildcards.sample, wildcards.i),
-    shell:
-        """
-        cat {params.files} > {params.tmp}
-        mv {params.tmp} {output[0]}
-        """
-
-rule cutadapt:
-    input:
-        "data/{sample}_R1.fastq.gz",
-        "data/{sample}_R2.fastq.gz"
-    output:
-        "results/cutadapt/{sample}_R1.cutadapt.fastq.gz",
-        "results/cutadapt/{sample}_R2.cutadapt.fastq.gz"
-    log: "logs/cutadapt/{sample}.log"
+        "results/cutadapt/{sample}_R1.1st.fastq.gz",
+        "results/cutadapt/{sample}_R2.1st.fastq.gz"
+    log: "logs/cutadapt/{sample}.1st.log"
     threads: config["cutadapt"]["threads"]
     conda: "envs/cutadapt.yml"
     params:
