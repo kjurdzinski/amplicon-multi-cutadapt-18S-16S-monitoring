@@ -5,7 +5,6 @@ channels:
   - defaults
 dependencies:
   - python=3.8
-  - tqdm=4.56.2
   - snakemake-minimal=5.32.2
   - pandas=1.2.2
   - multiqc=1.10.1
