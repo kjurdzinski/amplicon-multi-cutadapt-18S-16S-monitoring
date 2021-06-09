@@ -1,11 +1,13 @@
 # Insect biome atlas
-Private github repository for Insect Biome Atlas project.
+Private github repository for the Insect Biome Atlas project.
 
-This repository hosts a snakemake workflow for analysis of sequences within
-the IBA project.
+This repository hosts a snakemake workflow for trimming and QC
+of paired-end fastq files. The trimming is done in three steps
+using `cutadapt`.
 
 ## Setup
 
+### Software requirements
 Install required packages with conda and activate environment:
 
 ```bash
@@ -13,13 +15,44 @@ conda env create -f environment.yml
 conda activate insect-biome
 ```
 
-### Install database
+### Input data
 
-To download fasta sequences from BOLD (via GBIF) do:
+The workflow finds all fastq-files under a top-level directory defined in the 
+workflow config:
+
+```yaml
+paths:
+  raw_data_dir: data
+```
+
+By default the workflow searches for fastq files under `data/`.
+One easy way to integrate your data is to symlink a data delivery folder inside
+`data/`. For instance say you have data delivered to a directory
+`/proj/delivery/P00001/`, then you can either symlink that folder into `data/`:
 
 ```bash
-snakemake -j 4 --use-conda filter_bold
+ln -s /proj/delivery/P00001 data/
 ```
+
+or you can make a config file that contains:
+
+```yaml
+paths:
+  raw_data_dir: /proj/delivery/P00001
+```
+
+then run the workflow with `--configfile <path-to-your-config>.yaml`
+
+## Running the workflow
+
+The basic command for running the workflow is:
+
+```bash
+snakemake -j 4 --use-conda --conda-frontend mamba
+```
+
+This runs snakemake with 4 cores and makes sure that workflow dependencies
+are handled using the 
 
 ## Background
 The Insect Biome Atlas (IBA) is an international collaborative effort to 
