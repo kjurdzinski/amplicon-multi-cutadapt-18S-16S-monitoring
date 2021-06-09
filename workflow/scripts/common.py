@@ -1,6 +1,7 @@
 from glob import glob
 import re
 import os
+import pandas as pd
 
 
 def glob_samples(datadir):
