@@ -12,5 +12,4 @@ primers:
         - "TCDGGRTGNCCRAARAAYCA"
         - "ATCDGGRTGNCCRAARAAYCA"
         - "GATCDGGRTGNCCRAARAAYCA"
-paths:
-    raw_data_dir: "data"
+data_dir: "data"

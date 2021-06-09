@@ -42,11 +42,7 @@ properties:
         items:
           type: string
         description: "Reverse primers"
-  paths:
-    type: object
-    default:
-      raw_data_dir: "data"
-    properties:
-      raw_data_dir:
-        type: string
-        description: "Top level directory for data"
+  data_dir:
+    type: string
+    default: "data"
+    description: "Top level directory for data"
