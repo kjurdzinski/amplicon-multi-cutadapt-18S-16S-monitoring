@@ -66,7 +66,7 @@ rule cutadapt1:
         tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
         min_len=config["cutadapt"]["minimum_length"]
     resources:
-        runtime=lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {threads} \
@@ -96,7 +96,7 @@ rule cutadapt2:
         tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz"
     conda: "envs/cutadapt.yml"
     resources:
-        runtime=lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
@@ -126,7 +126,7 @@ rule cutadapt3:
         tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
         tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz"
     resources:
-        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
+        runtime = lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
