@@ -55,8 +55,8 @@ rule cutadapt1:
         R1=lambda wildcards: samples[wildcards.sample]["R1"],
         R2=lambda wildcards: samples[wildcards.sample]["R2"]
     output:
-        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s1_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s1_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s1_R2.log"
     message: "Step 1 for {wildcards.sample}: Removing reads with adapters"
     threads: config["cutadapt"]["threads"]
@@ -84,8 +84,8 @@ rule cutadapt2:
         R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
         R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
     output:
-        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s2_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s2_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s2_R2.log"
     message: "Step 2 for {wildcards.sample}: Keeping reads with primers at 5'"
     threads: config["cutadapt"]["threads"]
