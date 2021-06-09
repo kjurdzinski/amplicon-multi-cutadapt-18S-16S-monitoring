@@ -46,3 +46,7 @@ properties:
     type: string
     default: "data"
     description: "Top level directory for data"
+  sample_list:
+    type: string
+    default: ""
+    description: "Sample file list"

@@ -1,6 +1,6 @@
 import os
 from snakemake.utils import validate
-from scripts.common import read_samples, shortest_primer
+from scripts.common import glob_samples, read_sample_list, shortest_primer
 
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
@@ -15,8 +15,11 @@ validate(config, "schemas/config.schema.yaml", set_default=True)
 
 localrules: all, rename, multiqc
 
-# Read samples from file
-samples=read_samples(config["data_dir"])
+# Read samples from file or glob from data dir
+if os.path.exists(config["sample_list"]):
+    samples=read_sample_list(config["sample_list"])
+else:
+    samples=glob_samples(config["data_dir"])
 
 rule all:
     input:

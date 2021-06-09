@@ -13,3 +13,4 @@ primers:
         - "ATCDGGRTGNCCRAARAAYCA"
         - "GATCDGGRTGNCCRAARAAYCA"
 data_dir: "data"
+sample_list: ""
