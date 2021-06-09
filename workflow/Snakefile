@@ -1,59 +1,162 @@
 import os
+from snakemake.utils import validate
+from scripts.common import read_samples, shortest_primer
 
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
 singularity: "docker://continuumio/miniconda3:4.9.2"
 
 # Set default config file
-configfile: "config/config.yaml"
+if os.path.exists("config/config.yaml"):
+    configfile: "config/config.yaml"
+
+# validate config
+validate(config, "schemas/config.schema.yaml", set_default=True)
 
 localrules: all
 
-def read_samples(datadir):
-    from glob import glob
-    import re
-    sample_re = re.compile("(.+)_R([12])_(.+).fastq.gz")
-    samples = {}
-    R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
-    R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
-    for i, f1 in enumerate(R1_files):
-        f2 = R2_files[i]
-        try:
-            prefix, read, suffix = sample_re.search(f1).groups()
-        except AttributeError:
-            print(f1)
-            continue
-        sample = os.path.basename(prefix)
-        samples[sample] = {'R1': f1, 'R2': f2}
-    return samples
-
 # Read samples from file
-samples = read_samples(config["paths"]["raw_data_dir"])
+samples=read_samples(config["paths"]["raw_data_dir"])
 
 rule all:
     input:
-        expand("results/cutadapt/{sample}_R{i}.1st.fastq.gz",
-            sample = samples.keys(), i = [1,2])
+        expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
+            sample=samples.keys(), i=[1,2], s=[1,2,3], suff=[".fastq.gz", "_fastqc.zip"]),
+        expand("results/multiqc_{s}.html",
+            s=[1,2,3])
 
 rule cutadapt1:
+    """
+    Remove any reads containing adapters
+    """
     input:
-        R1 = lambda wildcards: samples[wildcards.sample]["R1"],
-        R2 = lambda wildcards: samples[wildcards.sample]["R2"]
+        R1=lambda wildcards: samples[wildcards.sample]["R1"],
+        R2=lambda wildcards: samples[wildcards.sample]["R2"]
     output:
-        "results/cutadapt/{sample}_R1.1st.fastq.gz",
-        "results/cutadapt/{sample}_R2.1st.fastq.gz"
-    log: "logs/cutadapt/{sample}.1st.log"
+        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s1_R2.log"
+    message: "Step 1 for {wildcards.sample}: Removing reads with adapters"
     threads: config["cutadapt"]["threads"]
     conda: "envs/cutadapt.yml"
     params:
-        f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
-        r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]]),
+        tmp1="$TMPDIR/{sample}_trim_s1_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
         min_len=config["cutadapt"]["minimum_length"]
     resources:
-        runtime = lambda wildcards, attempt: attempt**2*30
+        runtime=lambda wildcards, attempt: attempt**2*30
     shell:
         """
-        cutadapt -j {threads} {params.f} {params.r} -o {output[0]} \
-            -p {output[1]} --minimum-length={params.min_len} \
-             {input[0]} {input[1]} > {log} 2>&1
+        cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {threads} \
+            -o {params.tmp1} -p {params.tmp2} {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
+        """
+
+rule cutadapt2:
+    """
+    Only keep reads that contain any of the phasing primers at the start of 
+    the 5' and remove the primers
+    """
+    input:
+        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+    output:
+        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s2_R2.log"
+    message: "Step 2 for {wildcards.sample}: Keeping reads with primers at 5'"
+    threads: config["cutadapt"]["threads"]
+    params:
+        fw_adap=" ".join([f"-g ^{g}" for g in config["primers"]["forward"]]),
+        rv_adap=" ".join([f"-G ^{G}" for G in config["primers"]["reverse"]]),
+        tmp1="$TMPDIR/{sample}_trim_s2_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz"
+    conda: "envs/cutadapt.yml"
+    resources:
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
+    shell:
+        """
+        cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
+            {params.rv_adap} -j {threads} -o {params.tmp1} -p {params.tmp2} \
+            {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
+        """
+
+rule cutadapt3:
+    """
+    Remove reads with primers anywhere else on the read
+    """
+    input:
+        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+    output:
+        R1="results/cutadapt/{sample}_trim_s3_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s3_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s3_R2.log"
+    message: "Step 3 for {wildcards.sample}: Remove reads with primers anywhere else"
+    threads: config["cutadapt"]["threads"]
+    conda: "envs/cutadapt.yml"
+    params:
+        shortest_fw=shortest_primer(config["primers"]["forward"]),
+        shortest_rv=shortest_primer(config["primers"]["reverse"]),
+        tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz"
+    shell:
+        """
+        cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
+            -B {params.shortest_rv} -o {params.tmp1} -p {params.tmp2} \
+            {input.R1} {input.R2} > {log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}        
+        """
+
+rule rename:
+    input:
+        "logs/cutadapt/{sample}_trim_s{s}_R2.log"
+    output:
+        "logs/cutadapt/{sample}_trim_s{s}_R1.log"
+    shell:
+        """
+        cat {input} | sed 's/_R2/_R1/g' > {output}
+        """
+
+rule fastqc:
+    input:
+        "{prefix}.fastq.gz"
+    output:
+        "{prefix}_fastqc.html",
+        "{prefix}_fastqc.zip"
+    log: "logs/fastqc/"+os.path.basename("{prefix}")+".log"
+    message: "Fastqc on {wildcards.prefix}"
+    conda: "envs/fastqc.yml"
+    threads: 4
+    shell:
+        """
+        fastqc -q -t {threads} --noextract {input} > {log} 2>&1
+        """
+
+rule multiqc:
+    input:
+        fastqc=expand("results/cutadapt/{sample}_trim_s{{s}}_R{i}_fastqc.zip",
+            sample=samples.keys(), i=[1, 2]),
+        logs=expand("logs/cutadapt/{sample}_trim_s{{s}}_R{i}.log",
+            sample=samples.keys(), i=[1,2]),
+    output:
+        "results/multiqc_{s}.html"
+    log: "logs/multiqc/multiqc_{s}.log"
+    message: "Generating MultiQC report for step {wildcards.s}"
+    params:
+        outdir=lambda wildcards, output: os.path.dirname(output[0]),
+        filelist="multiqc_{s}.files",
+        n="multiqc_{s}.html",
+        title="MultiQC report for cutadapt step {s}"
+    shell:
+        """
+        echo {input} | tr ' ' '\n' > {params.filelist}
+        multiqc -f -n {params.n} -o {params.outdir} -l {params.filelist} \
+            --title "{params.title}" \
+            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3]'}}]}}" > {log} 2>&1
+        rm -f {params.filelist}
         """
