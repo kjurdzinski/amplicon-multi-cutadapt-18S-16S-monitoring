@@ -13,7 +13,7 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
-localrules: all, rename, multiqc
+localrules: all, rename, multiqc, output_samples
 
 # Read samples from file or glob from data dir
 if os.path.exists(config["sample_list"]):
