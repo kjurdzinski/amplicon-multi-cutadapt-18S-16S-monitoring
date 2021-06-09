@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+    branches:
+      - main
+env:
+  TMPDIR: /tmp
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - uses: s-weigand/setup-conda@v1
+    - name: Install the conda environment
+      run: conda env update -n base -f environment.yml
+    - name: Prep data
+      run: |
+        gzip tests/data/*/*.fastq
+    - name: Run workflow
+      run: |
+        snakemake --use-conda --conda-frontend mamba -j 4 --directory tests/
