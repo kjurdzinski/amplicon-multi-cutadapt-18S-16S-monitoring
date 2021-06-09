@@ -1,8 +1,0 @@
-name: cluster
-channels:
-  - bioconda
-  - conda-forge
-  - defaults
-dependencies:
-  - vsearch=2.17.0
-  - biopython=1.78
