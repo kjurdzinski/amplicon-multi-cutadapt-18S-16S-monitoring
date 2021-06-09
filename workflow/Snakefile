@@ -16,7 +16,7 @@ validate(config, "schemas/config.schema.yaml", set_default=True)
 localrules: all, rename, multiqc
 
 # Read samples from file
-samples=read_samples(config["paths"]["raw_data_dir"])
+samples=read_samples(config["data_dir"])
 
 rule all:
     input:
@@ -24,6 +24,25 @@ rule all:
             sample=samples.keys(), i=[1,2], s=[1,2,3], suff=[".fastq.gz", "_fastqc.zip"]),
         expand("results/multiqc_{s}.html",
             s=[1,2,3])
+
+rule output_samples:
+    """
+    Generates a sample file list from the data dir path
+    """
+    output:
+        "sample_list.txt"
+    run:
+        with open(output[0], 'w') as fhout:
+            fhout.write("sample\tR1\tR1_type\tR1_exists\tR2\tR2_type\tR2_exists\n")
+            for sample in samples.keys():
+                R1 = samples[sample]["R1"]
+                R1_type = str(type(R1))
+                exists_R1 = "yes" if os.path.exists(R1) else "no"
+                R2 = samples[sample]["R2"]
+                R2_type = str(type(R2))
+                exists_R2 = "yes" if os.path.exists(R2) else "no"
+                fhout.write("\t".join([sample, R1, R1_type, exists_R1, R2, R2_type, exists_R2]))
+                fhout.write("\n")
 
 rule cutadapt1:
     """
