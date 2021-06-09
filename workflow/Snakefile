@@ -13,7 +13,7 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
-localrules: all
+localrules: all, rename, multiqc
 
 # Read samples from file
 samples=read_samples(config["paths"]["raw_data_dir"])
@@ -44,7 +44,7 @@ rule cutadapt1:
         tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
         min_len=config["cutadapt"]["minimum_length"]
     resources:
-        runtime=lambda wildcards, attempt: attempt**2*30
+        runtime=lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
     shell:
         """
         cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {threads} \
@@ -74,7 +74,7 @@ rule cutadapt2:
         tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz"
     conda: "envs/cutadapt.yml"
     resources:
-        runtime=lambda wildcards, attempt: attempt ** 2 * 30
+        runtime=lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
     shell:
         """
         cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
@@ -103,6 +103,8 @@ rule cutadapt3:
         shortest_rv=shortest_primer(config["primers"]["reverse"]),
         tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
         tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz"
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 0.5
     shell:
         """
         cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
@@ -131,6 +133,8 @@ rule fastqc:
     log: "logs/fastqc/"+os.path.basename("{prefix}")+".log"
     message: "Fastqc on {wildcards.prefix}"
     conda: "envs/fastqc.yml"
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 1
     threads: 4
     shell:
         """
