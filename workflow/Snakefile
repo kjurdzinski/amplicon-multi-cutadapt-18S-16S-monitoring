@@ -30,7 +30,7 @@ rule output_samples:
     Generates a sample file list from the data dir path
     """
     output:
-        "sample_list.txt"
+        "samples/{n}.tsv"
     run:
         with open(output[0], 'w') as fhout:
             fhout.write("sample\tR1\tR1_type\tR1_exists\tR2\tR2_type\tR2_exists\n")
