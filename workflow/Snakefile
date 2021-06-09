@@ -1,141 +1,188 @@
 import os
+from snakemake.utils import validate
+from scripts.common import glob_samples, read_sample_list, shortest_primer
 
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
 singularity: "docker://continuumio/miniconda3:4.9.2"
 
 # Set default config file
-configfile: "config/config.yaml"
+if os.path.exists("config/config.yaml"):
+    configfile: "config/config.yaml"
 
-localrules: concat_samples, all, download_bold
+# validate config
+validate(config, "schemas/config.schema.yaml", set_default=True)
 
-def read_samples(sample_list):
-    import pandas as pd
-    df = pd.read_csv(sample_list, sep="\t", index_col=0, header=None)
-    return df.to_dict()[1]
+localrules: all, rename, multiqc, output_samples
 
-def fastq_files(data_dir, sample, i):
-    # Open the .lst file for the sample
-    with open("{}/{}.lst".format(data_dir, sample), 'r') as fh:
-        files = []
-        for line in fh:
-            if f"_R{i}_" in line:
-                files.append("{}/{}".format(data_dir, line.rstrip()))
-    return " ".join(sorted(files))
-
-# Read samples from file
-samples = read_samples(config["sample_list"])
+# Read samples from file or glob from data dir
+if os.path.exists(config["sample_list"]):
+    samples=read_sample_list(config["sample_list"])
+else:
+    samples=glob_samples(config["data_dir"])
 
 rule all:
     input:
-        expand("results/cutadapt/{sample}_R{i}.cutadapt.fastq.gz", 
-            sample = samples.keys(), i = [1,2]),
-        "resources/bold/bold_seqs.filtered.fasta"
+        expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
+            sample=samples.keys(), i=[1,2], s=[1,2,3], suff=[".fastq.gz", "_fastqc.zip"]),
+        expand("results/multiqc_{s}.html",
+            s=[1,2,3])
 
-rule download_bold:
+rule output_samples:
+    """
+    Generates a sample file list from the data dir path
+    """
     output:
-        "resources/bold/bold_info.tsv",
-        "resources/bold/bold_seqs.txt"
-    log:
-        "logs/bold/dl.log"
-    params:
-        url = config["database"]["url"]
-    shell:
-        """
-        curl -L -o $TMPDIR/bold.zip {params.url} > {log} 2>&1
-        unzip -o -d $TMPDIR/ $TMPDIR/bold.zip occurrences.txt sequence.txt >> {log} 2>&1
-        mv $TMPDIR/sequence.txt {output[1]}
-        mv $TMPDIR/occurrences.txt {output[0]}
-        rm $TMPDIR/bold.zip
-        """
+        "samples/{n}.tsv"
+    run:
+        with open(output[0], 'w') as fhout:
+            fhout.write("sample\tR1\tR1_type\tR1_exists\tR2\tR2_type\tR2_exists\n")
+            for sample in samples.keys():
+                R1 = samples[sample]["R1"]
+                R1_type = str(type(R1))
+                exists_R1 = "yes" if os.path.exists(R1) else "no"
+                R2 = samples[sample]["R2"]
+                R2_type = str(type(R2))
+                exists_R2 = "yes" if os.path.exists(R2) else "no"
+                fhout.write("\t".join([sample, R1, R1_type, exists_R1, R2, R2_type, exists_R2]))
+                fhout.write("\n")
 
-rule extract_bold_seqs:
+rule cutadapt1:
     """
-    Extract sequences matching certain genes from the bold sequence file
-    """
-    input:
-        "resources/bold/bold_seqs.txt"
-    output:
-        temp("resources/bold/bold_seqs.{gene}.fasta")
-    script:
-        "scripts/common.py"
-
-rule extract_bold_taxa:
-    """
-    Extract record ids based on taxonomy
+    Remove any reads containing adapters
     """
     input:
-        "resources/bold/bold_info.tsv"
+        R1=lambda wildcards: samples[wildcards.sample]["R1"],
+        R2=lambda wildcards: samples[wildcards.sample]["R2"]
     output:
-        temp("resources/bold/{taxa}.ids")
-    script:
-        "scripts/common.py"
-
-rule filter_bold:
-    input:
-        ids = expand("resources/bold/{taxa}.ids",
-            taxa = config["database"]["taxa"]),
-        seq = expand("resources/bold/bold_seqs.{gene}.fasta",
-            gene = config["database"]["gene"])
-    output:
-        "resources/bold/bold_seqs.filtered.fasta"
-    conda:
-        "envs/seqtk.yml"
-    params:
-        tmpdir = "$TMPDIR",
-        ids = "$TMPDIR/ids",
-        seq = "$TMPDIR/seq"
-    shell:
-        """
-        cat {input.ids} > {params.ids}
-        cat {input.seq} > {params.seq}
-        seqtk subseq {params.seq} {params.ids} > {params.tmpdir}/seqs.fa
-        mv {params.tmpdir}/seqs.fa {output}
-        """
-
-rule cluster_bold:
-    input:
-        "resources/bold/bold_seqs.fasta"
-    output:
-        touch("resources/bold/bold_seqs.clust.fasta")
-    conda:
-        "envs/vsearch.yml"
-    shell:
-        """
-        vsearch -v
-        """
-
-rule concat_samples:
-    """This rule concatenates sample fastq files from multiple lanes"""
-    output:
-        "data/{sample}_R{i}.fastq.gz"
-    params:
-        tmp="$TMPDIR/{sample}_R{i}.fastq.gz",
-        files=lambda wildcards: fastq_files(config["paths"]["raw_data_dir"], wildcards.sample, wildcards.i),
-    shell:
-        """
-        cat {params.files} > {params.tmp}
-        mv {params.tmp} {output[0]}
-        """
-
-rule cutadapt:
-    input:
-        "data/{sample}_R1.fastq.gz",
-        "data/{sample}_R2.fastq.gz"
-    output:
-        "results/cutadapt/{sample}_R1.cutadapt.fastq.gz",
-        "results/cutadapt/{sample}_R2.cutadapt.fastq.gz"
-    log: "logs/cutadapt/{sample}.log"
+        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s1_R2.log"
+    message: "Step 1 for {wildcards.sample}: Removing reads with adapters"
     threads: config["cutadapt"]["threads"]
+    conda: "envs/cutadapt.yml"
     params:
-        f=" ".join(["-a {}".format(x) for x in config["primers"]["forward"]]),
-        r=" ".join(["-A {}".format(x) for x in config["primers"]["reverse"]]),
+        tmp1="$TMPDIR/{sample}_trim_s1_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
         min_len=config["cutadapt"]["minimum_length"]
     resources:
-        runtime = lambda wildcards, attempt: attempt**2*30
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
-        cutadapt -j {threads} {params.f} {params.r} -o {output[0]} \
-            -p {output[1]} --minimum-length={params.min_len} \
-             {input[0]} {input[1]} > {log} 2>&1
+        cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {threads} \
+            -o {params.tmp1} -p {params.tmp2} {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
+        """
+
+rule cutadapt2:
+    """
+    Only keep reads that contain any of the phasing primers at the start of 
+    the 5' and remove the primers
+    """
+    input:
+        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+    output:
+        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s2_R2.log"
+    message: "Step 2 for {wildcards.sample}: Keeping reads with primers at 5'"
+    threads: config["cutadapt"]["threads"]
+    params:
+        fw_adap=" ".join([f"-g ^{g}" for g in config["primers"]["forward"]]),
+        rv_adap=" ".join([f"-G ^{G}" for G in config["primers"]["reverse"]]),
+        tmp1="$TMPDIR/{sample}_trim_s2_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz"
+    conda: "envs/cutadapt.yml"
+    resources:
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
+    shell:
+        """
+        cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
+            {params.rv_adap} -j {threads} -o {params.tmp1} -p {params.tmp2} \
+            {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
+        """
+
+rule cutadapt3:
+    """
+    Remove reads with primers anywhere else on the read
+    """
+    input:
+        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+    output:
+        R1="results/cutadapt/{sample}_trim_s3_R1.fastq.gz",
+        R2="results/cutadapt/{sample}_trim_s3_R2.fastq.gz"
+    log: "logs/cutadapt/{sample}_trim_s3_R2.log"
+    message: "Step 3 for {wildcards.sample}: Remove reads with primers anywhere else"
+    threads: config["cutadapt"]["threads"]
+    conda: "envs/cutadapt.yml"
+    params:
+        shortest_fw=shortest_primer(config["primers"]["forward"]),
+        shortest_rv=shortest_primer(config["primers"]["reverse"]),
+        tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz"
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 30
+    shell:
+        """
+        cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
+            -B {params.shortest_rv} -o {params.tmp1} -p {params.tmp2} \
+            {input.R1} {input.R2} > {log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}        
+        """
+
+rule rename:
+    input:
+        "logs/cutadapt/{sample}_trim_s{s}_R2.log"
+    output:
+        "logs/cutadapt/{sample}_trim_s{s}_R1.log"
+    shell:
+        """
+        cat {input} | sed 's/_R2/_R1/g' > {output}
+        """
+
+rule fastqc:
+    input:
+        "{prefix}.fastq.gz"
+    output:
+        "{prefix}_fastqc.html",
+        "{prefix}_fastqc.zip"
+    log: "logs/fastqc/"+os.path.basename("{prefix}")+".log"
+    message: "Fastqc on {wildcards.prefix}"
+    conda: "envs/fastqc.yml"
+    resources:
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 1
+    threads: 4
+    shell:
+        """
+        fastqc -q -t {threads} --noextract {input} > {log} 2>&1
+        """
+
+rule multiqc:
+    input:
+        fastqc=expand("results/cutadapt/{sample}_trim_s{{s}}_R{i}_fastqc.zip",
+            sample=samples.keys(), i=[1, 2]),
+        logs=expand("logs/cutadapt/{sample}_trim_s{{s}}_R{i}.log",
+            sample=samples.keys(), i=[1,2]),
+    output:
+        "results/multiqc_{s}.html"
+    log: "logs/multiqc/multiqc_{s}.log"
+    message: "Generating MultiQC report for step {wildcards.s}"
+    params:
+        outdir=lambda wildcards, output: os.path.dirname(output[0]),
+        filelist="multiqc_{s}.files",
+        n="multiqc_{s}.html",
+        title="MultiQC report for cutadapt step {s}"
+    shell:
+        """
+        echo {input} | tr ' ' '\n' > {params.filelist}
+        multiqc -f -n {params.n} -o {params.outdir} -l {params.filelist} \
+            --title "{params.title}" \
+            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3]'}}, {{'type': 'regex', 'pattern': '_\d+.fastq.gz'}}]}}" > {log} 2>&1
+        rm -f {params.filelist}
         """

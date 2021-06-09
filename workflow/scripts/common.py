@@ -1,32 +1,61 @@
-#!/usr/bin/env python
+from glob import glob
+import re
+import os
+import pandas as pd
 
 
-def extract_bold_taxa(sm):
-    with open(sm.input[0], 'r') as fhin, open(sm.output[0], 'w') as fhout:
-        for line in fhin:
-            items = line.rstrip().split("\t")
-            indices = [0, 7, 8, 9, 10, 11, 12]
-            record_id, p, c, o, f, g, s = [items[i] for i in indices]
-            if p == sm.wildcards.taxa:
-                fhout.write(f"{record_id}\n")
+def glob_samples(datadir):
+    """
+    Globs files recursively under datadir and uses regular expression to
+    extract sample id. Returns a dictionary with samples.
+
+    :param datadir: Top level data directory
+    :return: dictionary with sample ids as keys and R1/R2 filepaths
+    """
+    sample_re = re.compile("(.+)R([12])(.*).fastq.gz")
+    samples = {}
+    R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
+    R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
+    for i, f1 in enumerate(R1_files):
+        f2 = R2_files[i]
+        try:
+            prefix, read, suffix = sample_re.search(f1).groups()
+        except AttributeError:
+            print(f1)
+            continue
+        sample = os.path.basename(prefix).rstrip("_").lstrip("_")
+        samples[sample] = {'R1': f1, 'R2': f2}
+    return samples
 
 
-def extract_bold_seqs(sm):
-    with open(sm.input[0], 'r') as fhin, open(sm.output[0], 'w') as fhout:
-        for line in fhin:
-            try:
-                record_id, gene, seq = line.rstrip().rsplit()
-            except ValueError:
-                continue
-            if gene == sm.wildcards.gene:
-                fhout.write(f">{record_id} {gene}\n{seq}\n")
+def read_sample_list(f):
+    """
+    Reads samples from a tab-separated file
+
+    :param f: sample list
+    :return: dictionary of samples and R1/R2 paths
+    """
+    df = pd.read_csv(f, sep="\t", index_col=0)
+    if "R1_type" in df.columns:
+        df = df.loc[df["R1_type"]=="<class 'str'>"]
+    if "R2_type" in df.columns:
+        df = df.loc[df["R2_type"] == "<class 'str'>"]
+    if "R1_exists" in df.columns:
+        df = df.loc[df["R1_exists"]=="yes"]
+    if "R2_exists" in df.columns:
+        df = df.loc[df["R2_exists"] == "yes"]
+    return df.to_dict(orient="index")
 
 
-def main(sm):
-    toolbox = {'extract_bold_taxa': extract_bold_taxa,
-               'extract_bold_seqs': extract_bold_seqs}
-    toolbox[sm.rule](sm)
+def shortest_primer(primers):
+    """
+    Returns the shortest sequence in a list
 
-
-if __name__ == '__main__':
-    main(snakemake)
+    :param primers: list of primer sequences
+    :return: shortest primer
+    """
+    shortest = primers[0]
+    for p in primers[1:]:
+        if len(p)<len(shortest):
+            shortest = p
+    return shortest
