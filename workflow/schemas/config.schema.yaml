@@ -1,0 +1,52 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: snakemake configuration file
+
+type: object
+
+properties:
+  cutadapt:
+    type: object
+    default:
+      threads: 4
+      minimum_length: 50
+    properties:
+      threads:
+        type: integer
+        description: "Threads to use for cutadapt"
+        minimum: 1
+      minimum_length:
+        type: integer
+        description: "Minimum read length to keep for cutadapt"
+  primers:
+    type: object
+    default:
+      forward:
+        - "CCHGAYATRGCHTTYCCHCG"
+        - "ACCHGAYATRGCHTTYCCHCG"
+        - "GACCHGAYATRGCHTTYCCHCG"
+        - "TGACCHGAYATRGCHTTYCCHCG"
+      reverse:
+        - "CDGGRTGNCCRAARAAYCA"
+        - "TCDGGRTGNCCRAARAAYCA"
+        - "ATCDGGRTGNCCRAARAAYCA"
+        - "GATCDGGRTGNCCRAARAAYCA"
+    properties:
+      forward:
+        type: array
+        items:
+          type: string
+        description: "Forward primers"
+      reverse:
+        type: array
+        items:
+          type: string
+        description: "Reverse primers"
+  paths:
+    type: object
+    default:
+      raw_data_dir: "data"
+    properties:
+      raw_data_dir:
+        type: string
+        description: "Top level directory for data"
