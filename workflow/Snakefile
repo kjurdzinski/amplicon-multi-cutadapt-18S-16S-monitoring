@@ -28,6 +28,12 @@ rule all:
         expand("results/multiqc_{s}.html",
             s=[1,2,3])
 
+rule trim:
+    input:
+        expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
+            sample=samples.keys(),i=[1, 2],s=[1, 2, 3],
+            suff=[".fastq.gz", "_fastqc.zip"])
+
 rule output_samples:
     """
     Generates a sample file list from the data dir path
