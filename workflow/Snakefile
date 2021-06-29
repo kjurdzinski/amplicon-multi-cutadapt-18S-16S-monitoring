@@ -13,6 +13,14 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
+# make sure TMPDIR is set
+try:
+    os.environ["TMPDIR"]
+except KeyError:
+    os.environ["TMPDIR"] = "temp"
+    os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
+
 # calculate read length after trimming
 config["cutadapt"]["1"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["forward"]))
 config["cutadapt"]["2"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["reverse"]))
