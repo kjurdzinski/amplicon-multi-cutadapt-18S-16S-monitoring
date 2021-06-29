@@ -1,6 +1,6 @@
 cutadapt:
     threads: 16
-    minimum_length: 50
+    expected_read_length: 251
 primers:
     forward:
         - "CCHGAYATRGCHTTYCCHCG"

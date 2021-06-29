@@ -9,7 +9,8 @@ properties:
     type: object
     default:
       threads: 4
-      minimum_length: 50
+      minimum_length: 228
+      expected_read_length: 251
     properties:
       threads:
         type: integer
@@ -18,6 +19,9 @@ properties:
       minimum_length:
         type: integer
         description: "Minimum read length to keep for cutadapt"
+      expected_read_length:
+        type: integer
+        description: "Expected read length of raw reads prior to trimming"
   primers:
     type: object
     default:
