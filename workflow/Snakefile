@@ -13,6 +13,22 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
+# Read samples from file or glob from data dir
+if os.path.exists(config["sample_list"]):
+    samples=read_sample_list(config["sample_list"])
+else:
+    samples=glob_samples(config["data_dir"])
+
+if len(samples) == 0:
+    sys.exit(f"""
+####################
+ERROR: No input data.
+Make sure that 'data_dir' (or its subdirectories) contains fastq files ending in
+'R1*.fastq.gz' and 'R2*.fastq.gz'.
+Your configured 'data_dir' is {config["data_dir"]}/
+####################
+""")
+
 # make sure TMPDIR is set
 try:
     os.environ["TMPDIR"]
@@ -29,22 +45,6 @@ config["cutadapt"]["minimum_length"] = min(config["cutadapt"]["1"], config["cuta
 
 localrules: all, rename_logs, multiqc, output_samples
 ruleorder: cutadapt4 > rename_logs
-
-# Read samples from file or glob from data dir
-if os.path.exists(config["sample_list"]):
-    samples=read_sample_list(config["sample_list"])
-else:
-    samples=glob_samples(config["data_dir"])
-
-if len(samples) == 0:
-    sys.exit(f"""
-####################
-ERROR: No input data.
-Make sure that 'data_dir' (or its subdirectories) contains fastq files ending in
-'R1*.fastq.gz' and 'R2*.fastq.gz'.
-Your configured 'data_dir' is {config["data_dir"]}/
-####################
-""")
 
 rule all:
     input:
