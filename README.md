@@ -2,7 +2,7 @@
 Private github repository for the Insect Biome Atlas project.
 
 This repository hosts a snakemake workflow for trimming and QC
-of paired-end fastq files. The trimming is done in three steps
+of paired-end fastq files. The trimming is done in four steps
 using `cutadapt`.
 
 ## Setup
@@ -15,14 +15,13 @@ conda env create -f environment.yml
 conda activate insect-biome
 ```
 
-### Input data
+### Data directory
 
 The workflow finds all fastq-files under a top-level directory defined in the 
 workflow config:
 
 ```yaml
-paths:
-  raw_data_dir: data
+data_dir: data
 ```
 
 By default the workflow searches for fastq files under `data/`.
@@ -37,11 +36,41 @@ ln -s /proj/delivery/P00001 data/
 or you can make a config file that contains:
 
 ```yaml
-paths:
-  raw_data_dir: /proj/delivery/P00001
+data_dir: /proj/delivery/P00001
 ```
 
 then run the workflow with `--configfile <path-to-your-config>.yaml`
+
+### Sample list (when you have a lot of samples)
+
+If you have **a lot** of samples it can take a long time for the workflow to
+locate each R1/R2 input file. This can slow down even so called dry-runs of the 
+workflow and make it difficult to work with. In that case you may want to create
+a sample list that specifies each sample and the respective R1/R2 file paths so
+that the workflow doesn't have to do this search on every instance.
+
+To generate such a sample list first make sure you've set the `data_dir` 
+parameter correctly in your configuration file then run:
+
+```bash
+snakemake -j 1 samples/sample_list.tsv
+```
+
+The workflow will now locate all the R1/R2 fastq-files under your configured 
+`data_dir` path and create a tab-delimited file called `sample_list.tsv` under
+the directory `samples/`. Using the `samples/` directory is required at this step,
+as is the `.tsv` suffix, but otherwise you can name the file anything you like, 
+so _e.g._ `snakemake -j 1 samples/my-sample-list.tsv` will also work.
+
+Note that if you're using a separate configuration file you have to update the 
+snakemake call above to include `--configfile <path-to-your-configfile>`.
+
+You only have to generate this sample list once, and then you can make the 
+workflow use the sample list by updating your configuration file with:
+
+```yaml
+sample_list: samples/sample_list.tsv
+```
 
 ## Running the workflow
 
@@ -52,7 +81,24 @@ snakemake -j 4 --use-conda --conda-frontend mamba
 ```
 
 This runs snakemake with 4 cores and makes sure that workflow dependencies
-are handled using the 
+are handled using the `mamba` package manager. If `mamba` is not installed on
+your system you can do so by running `conda install -c conda-forge mamba`.
+
+## Test data
+
+This repo comes with a few test fastq files located in subdirectories under 
+`tests/data/`. To try the workflow out with these files you must first zip them,
+_e.g._ by running:
+
+```bash
+gzip tests/data/*/*.fastq
+```
+
+Then you can do a test run on this data by running:
+
+```
+snakemake --config data_dir=tests/data -j 4 --use-conda --conda-frontend mamba
+```
 
 ## Background
 The Insect Biome Atlas (IBA) is an international collaborative effort to 

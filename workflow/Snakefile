@@ -1,6 +1,6 @@
 import os
 from snakemake.utils import validate
-from scripts.common import glob_samples, read_sample_list, shortest_primer
+from scripts.common import glob_samples, read_sample_list, shortest_primer, longest_primer
 
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
@@ -13,20 +13,45 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
-localrules: all, rename, multiqc, output_samples
-
 # Read samples from file or glob from data dir
 if os.path.exists(config["sample_list"]):
     samples=read_sample_list(config["sample_list"])
 else:
     samples=glob_samples(config["data_dir"])
 
+if len(samples) == 0:
+    sys.exit(f"""
+####################
+ERROR: No input data.
+Make sure that 'data_dir' (or its subdirectories) contains fastq files ending in
+'R1*.fastq.gz' and 'R2*.fastq.gz'.
+Your configured 'data_dir' is {config["data_dir"]}/
+####################
+""")
+
+# make sure TMPDIR is set
+try:
+    os.environ["TMPDIR"]
+except KeyError:
+    os.environ["TMPDIR"] = "temp"
+    os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
+# calculate read length after trimming
+config["cutadapt"]["1"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["forward"]))
+config["cutadapt"]["2"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["reverse"]))
+
+# calculate minimum read length as the shortest of the R1/R2 trimmed lengths
+config["cutadapt"]["minimum_length"] = min(config["cutadapt"]["1"], config["cutadapt"]["2"])
+
+localrules: all, rename_logs, multiqc, output_samples
+ruleorder: cutadapt4 > rename_logs
+
 rule all:
     input:
         expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
-            sample=samples.keys(), i=[1,2], s=[1,2,3], suff=[".fastq.gz", "_fastqc.zip"]),
+            sample=samples.keys(), i=[1,2], s=[1,2,3,4], suff=[".fastq.gz", "_fastqc.zip"]),
         expand("results/multiqc_{s}.html",
-            s=[1,2,3])
+            s=[1,2,3,4])
 
 rule trim:
     input:
@@ -70,13 +95,15 @@ rule cutadapt1:
     params:
         tmp1="$TMPDIR/{sample}_trim_s1_R1.fastq.gz",
         tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
-        min_len=config["cutadapt"]["minimum_length"]
+        overlap=12,
+        minimum_length=config["cutadapt"]["minimum_length"]
     resources:
         runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {threads} \
-            -o {params.tmp1} -p {params.tmp2} {input.R1} {input.R2} >{log} 2>&1
+            -o {params.tmp1} -p {params.tmp2} -O {params.overlap} \
+            -m {params.minimum_length} {input.R1} {input.R2} >{log} 2>&1
         mv {params.tmp1} {output.R1}
         mv {params.tmp2} {output.R2}
         """
@@ -99,7 +126,8 @@ rule cutadapt2:
         fw_adap=" ".join([f"-g ^{g}" for g in config["primers"]["forward"]]),
         rv_adap=" ".join([f"-G ^{G}" for G in config["primers"]["reverse"]]),
         tmp1="$TMPDIR/{sample}_trim_s2_R1.fastq.gz",
-        tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz"
+        tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz",
+        minimum_length=config["cutadapt"]["minimum_length"]
     conda: "envs/cutadapt.yml"
     resources:
         runtime=lambda wildcards, attempt: attempt ** 2 * 30
@@ -107,7 +135,7 @@ rule cutadapt2:
         """
         cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
             {params.rv_adap} -j {threads} -o {params.tmp1} -p {params.tmp2} \
-            {input.R1} {input.R2} >{log} 2>&1
+            -m {params.minimum_length} {input.R1} {input.R2} >{log} 2>&1
         mv {params.tmp1} {output.R1}
         mv {params.tmp2} {output.R2}
         """
@@ -130,19 +158,42 @@ rule cutadapt3:
         shortest_fw=shortest_primer(config["primers"]["forward"]),
         shortest_rv=shortest_primer(config["primers"]["reverse"]),
         tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
-        tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz"
+        tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz",
+        overlap=min(len(shortest_primer(config["primers"]["forward"])),
+                    len(shortest_primer(config["primers"]["reverse"]))),
+        minimum_length=config["cutadapt"]["minimum_length"]
     resources:
         runtime = lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
-            -B {params.shortest_rv} -o {params.tmp1} -p {params.tmp2} \
-            {input.R1} {input.R2} > {log} 2>&1
+            -B {params.shortest_rv} -o {params.tmp1} -p {params.tmp2} -O {params.overlap} \
+            -m {params.minimum_length} {input.R1} {input.R2} > {log} 2>&1
         mv {params.tmp1} {output.R1}
         mv {params.tmp2} {output.R2}        
         """
 
-rule rename:
+rule cutadapt4:
+    input:
+        "results/cutadapt/{sample}_trim_s3_R{i}.fastq.gz"
+    output:
+        "results/cutadapt/{sample}_trim_s4_R{i}.fastq.gz"
+    log:
+        "logs/cutadapt/{sample}_trim_s4_R{i}.log"
+    message: "Step 4 for {wildcards.sample}_{wildcards.i}: Trim reads to fixed length"
+    threads: config["cutadapt"]["threads"]
+    conda: "envs/cutadapt.yml"
+    params:
+        l=lambda wildcards: config["cutadapt"][wildcards.i],
+        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz",
+    shell:
+        """
+        cutadapt -j {threads} --length {params.l} -o {params.tmp} \
+            {input} > {log} 2>&1
+        mv {params.tmp} {output}
+        """
+
+rule rename_logs:
     input:
         "logs/cutadapt/{sample}_trim_s{s}_R2.log"
     output:
@@ -189,6 +240,6 @@ rule multiqc:
         echo {input} | tr ' ' '\n' > {params.filelist}
         multiqc -f -n {params.n} -o {params.outdir} -l {params.filelist} \
             --title "{params.title}" \
-            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3]'}}, {{'type': 'regex', 'pattern': '_\d+.fastq.gz'}}]}}" > {log} 2>&1
+            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\d+.fastq.gz'}}]}}" > {log} 2>&1
         rm -f {params.filelist}
         """

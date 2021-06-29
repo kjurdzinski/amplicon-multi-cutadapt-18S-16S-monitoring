@@ -59,3 +59,17 @@ def shortest_primer(primers):
         if len(p)<len(shortest):
             shortest = p
     return shortest
+
+
+def longest_primer(primers):
+    """
+    Returns the longest sequence in a list
+
+    :param primers: list of primer sequences
+    :return: longest primer
+    """
+    longest = primers[0]
+    for p in primers[1:]:
+        if len(p)>len(longest):
+            longest = p
+    return longest
