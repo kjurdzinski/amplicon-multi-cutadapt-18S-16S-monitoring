@@ -179,7 +179,9 @@ rule cutadapt4:
     conda: "envs/cutadapt.yml"
     params:
         l=lambda wildcards: config["cutadapt"][wildcards.i],
-        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz",
+        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz"
+    resources:
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt -j {threads} --length {params.l} -o {params.tmp} \
