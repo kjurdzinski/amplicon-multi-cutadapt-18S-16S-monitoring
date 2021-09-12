@@ -48,10 +48,13 @@ ruleorder: cutadapt4 > rename_logs
 
 rule all:
     input:
-        expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
-            sample=samples.keys(), i=[1,2], s=[1,2,3,4], suff=[".fastq.gz", "_fastqc.zip"]),
+        expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
+            sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
+
+rule qc_report:
+    input:
         expand("results/multiqc_{s}.html",
-            s=[1,2,3,4])
+            s=[1, 2, 3, 4])
 
 rule trim:
     input:
@@ -148,8 +151,8 @@ rule cutadapt3:
         R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
         R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
     output:
-        R1="results/cutadapt/{sample}_trim_s3_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s3_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s3_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s3_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s3_R2.log"
     message: "Step 3 for {wildcards.sample}: Remove reads with primers anywhere else"
     threads: config["cutadapt"]["threads"]
@@ -185,7 +188,9 @@ rule cutadapt4:
     conda: "envs/cutadapt.yml"
     params:
         l=lambda wildcards: config["cutadapt"][wildcards.i],
-        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz",
+        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz"
+    resources:
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
         cutadapt -j {threads} --length {params.l} -o {params.tmp} \
