@@ -48,10 +48,13 @@ ruleorder: cutadapt4 > rename_logs
 
 rule all:
     input:
-        expand("results/cutadapt/{sample}_trim_s{s}_R{i}{suff}",
-            sample=samples.keys(), i=[1,2], s=[1,2,3,4], suff=[".fastq.gz", "_fastqc.zip"]),
+        expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
+            sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
+
+rule qc_report:
+    input:
         expand("results/multiqc_{s}.html",
-            s=[1,2,3,4])
+            s=[1, 2, 3, 4])
 
 rule output_samples:
     """
@@ -80,8 +83,8 @@ rule cutadapt1:
         R1=lambda wildcards: samples[wildcards.sample]["R1"],
         R2=lambda wildcards: samples[wildcards.sample]["R2"]
     output:
-        R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s1_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s1_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s1_R2.log"
     message: "Step 1 for {wildcards.sample}: Removing reads with adapters"
     threads: config["cutadapt"]["threads"]
@@ -111,8 +114,8 @@ rule cutadapt2:
         R1="results/cutadapt/{sample}_trim_s1_R1.fastq.gz",
         R2="results/cutadapt/{sample}_trim_s1_R2.fastq.gz"
     output:
-        R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s2_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s2_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s2_R2.log"
     message: "Step 2 for {wildcards.sample}: Keeping reads with primers at 5'"
     threads: config["cutadapt"]["threads"]
@@ -142,8 +145,8 @@ rule cutadapt3:
         R1="results/cutadapt/{sample}_trim_s2_R1.fastq.gz",
         R2="results/cutadapt/{sample}_trim_s2_R2.fastq.gz"
     output:
-        R1="results/cutadapt/{sample}_trim_s3_R1.fastq.gz",
-        R2="results/cutadapt/{sample}_trim_s3_R2.fastq.gz"
+        R1=temp("results/cutadapt/{sample}_trim_s3_R1.fastq.gz"),
+        R2=temp("results/cutadapt/{sample}_trim_s3_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s3_R2.log"
     message: "Step 3 for {wildcards.sample}: Remove reads with primers anywhere else"
     threads: config["cutadapt"]["threads"]
