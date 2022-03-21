@@ -1,5 +1,5 @@
 # Insect biome atlas
-Private github repository for the Insect Biome Atlas project.
+Repository for the Insect Biome Atlas project.
 
 This repository hosts a snakemake workflow for trimming and QC
 of paired-end fastq files. The trimming is done in four steps
@@ -83,6 +83,25 @@ snakemake -j 4 --use-conda --conda-frontend mamba
 This runs snakemake with 4 cores and makes sure that workflow dependencies
 are handled using the `mamba` package manager. If `mamba` is not installed on
 your system you can do so by running `conda install -c conda-forge mamba`.
+
+### Running on a compute cluster
+
+If you want to run the workflow on a computing cluster that uses the SLURM workload
+manager (_e.g._ [Uppmax](https://uppmax.uu.se/)) you can make use of the [slurm
+profile](https://github.com/Snakemake-Profiles/slurm) for Snakemake. The profile
+is integrated into the workflow and to use it for your project simply update
+the `config/cluster.yaml` file with your account name:
+
+```yaml
+__default__:
+    account: "snic2020-15-29" # <---- update with your account name
+```
+
+Then run the workflow as such:
+
+```bash
+snakemake -rpk -j 100 --use-conda --conda-frontend mamba --profile slurm  
+```
 
 ## Test data
 
