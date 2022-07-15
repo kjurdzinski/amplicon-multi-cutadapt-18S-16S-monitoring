@@ -226,8 +226,8 @@ rule multiqc:
         logs=expand("logs/cutadapt/{sample}_trim_s{{s}}_R{i}.log",
             sample=samples.keys(), i=[1,2]),
     output:
-        "results/multiqc_{s}.html"
-    log: "logs/multiqc/multiqc_{s}.log"
+        "{dir}/multiqc_{s}.html"
+    log: "logs/{dir}multiqc/multiqc_{s}.log"
     message: "Generating MultiQC report for step {wildcards.s}"
     params:
         outdir=lambda wildcards, output: os.path.dirname(output[0]),
