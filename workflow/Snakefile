@@ -62,6 +62,16 @@ rule trim:
             sample=samples.keys(),i=[1, 2],s=[1, 2, 3],
             suff=[".fastq.gz", "_fastqc.zip"])
 
+rule zip:
+    input:
+        "{f}.fastq"
+    output:
+        "{f}.fastq.gz"
+    shell:
+        """
+        gzip -c {input} > {output}
+        """
+
 rule output_samples:
     """
     Generates a sample file list from the data dir path
@@ -74,10 +84,10 @@ rule output_samples:
             for sample in samples.keys():
                 R1 = samples[sample]["R1"]
                 R1_type = str(type(R1))
-                exists_R1 = "yes" if os.path.exists(R1) else "no"
+                exists_R1 = "yes" if os.path.exists(R1) or os.path.exists(R1.rstrip(".gz")) else "no"
                 R2 = samples[sample]["R2"]
                 R2_type = str(type(R2))
-                exists_R2 = "yes" if os.path.exists(R2) else "no"
+                exists_R2 = "yes" if os.path.exists(R2) or os.path.exists(R2.rstrip(".gz")) else "no"
                 fhout.write("\t".join([sample, R1, R1_type, exists_R1, R2, R2_type, exists_R2]))
                 fhout.write("\n")
 
