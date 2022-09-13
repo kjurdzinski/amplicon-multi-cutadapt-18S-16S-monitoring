@@ -12,10 +12,10 @@ def glob_samples(datadir):
     :param datadir: Top level data directory
     :return: dictionary with sample ids as keys and R1/R2 filepaths
     """
-    sample_re = re.compile("(.+)R([12])(.*).fastq.gz")
+    sample_re = re.compile("(.+)R([12])(.*).fastq[.gz]*")
     samples = {}
-    R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq.gz", recursive=True))
-    R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq.gz", recursive=True))
+    R1_files = sorted(glob(f"{datadir}/**/*R1*.fastq*", recursive=True))
+    R2_files = sorted(glob(f"{datadir}/**/*R2*.fastq*", recursive=True))
     for i, f1 in enumerate(R1_files):
         f2 = R2_files[i]
         try:
@@ -24,7 +24,8 @@ def glob_samples(datadir):
             print(f1)
             continue
         sample = os.path.basename(prefix).rstrip("_").lstrip("_")
-        samples[sample] = {'R1': f1, 'R2': f2}
+        samples[sample] = {'R1': f1+".gz" if not f1.endswith(".gz") else f1,
+                           'R2': f2+".gz" if not f2.endswith(".gz") else f2}
     return samples
 
 
