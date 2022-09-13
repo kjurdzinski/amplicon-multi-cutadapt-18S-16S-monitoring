@@ -42,7 +42,7 @@ command line options to use with snakemake.
 In addition to the `test` profile, the workflow comes with pre-configured 
 profiles for: 
 1) running locally on your own computer
-2) running on HPC clusters with the SLURM workload manager (_e.g._ the UPPMAX cluster), and
+2) running on HPC clusters with the SLURM workload manager (_e.g._ the UPPMAX cluster)
  
 
 To use them you specify `--profile local` and `--profile slurm` respectively. So
@@ -146,3 +146,18 @@ workflow use the sample list by updating your configuration file with:
 ```yaml
 sample_list: samples/sample_list.tsv
 ```
+
+## Explanation of the cutadapt steps
+
+The workflow processes fastq files in four consecutive `cutadapt` steps:
+
+1. Discard all reads with the Illumina TruSeq adapters in either the 5' and 3'  
+   end of sequences. 
+2. Search for and trim primer sequences from the start of reads in R1 and R2
+   files using forward and reverse primers, respectively. Remove any untrimmed 
+   read. This step is done with additional settings `--no-indels` and `-e 0` in 
+   order to only accept perfect matches.
+3. Discard any remaining reads that still contain primer sequences.
+4. Trim reads to a fixed length. This length is calculated by subtracting the 
+   length of the longest primer from the read length defined by the `expected_read_length:`
+   parameter under the `cutadapt:` section in the config file (default value is 251).
