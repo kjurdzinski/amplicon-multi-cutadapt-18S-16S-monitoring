@@ -1,31 +1,99 @@
-# Insect biome atlas
-Private github repository for the Insect Biome Atlas project.
+# Amplicon-multi-cutadapt
 
 This repository hosts a snakemake workflow for trimming and QC
 of paired-end fastq files. The trimming is done in four steps
 using `cutadapt`.
 
-## Setup
+## Installation
 
-### Software requirements
-Install required packages with conda and activate environment:
+Use conda to create and activate the software environment required to start the 
+workflow:
 
 ```bash
 conda env create -f environment.yml
-conda activate insect-biome
+conda activate amp-multi-cut
 ```
 
-### Data directory
+**Note**: If you don't have conda installed, please visit the [conda docs](https://docs.conda.io/en/latest/miniconda.html)
+for instructions and installation links.
 
-The workflow finds all fastq-files under a top-level directory defined in the 
-workflow config:
+## Running the workflow
+
+This workflow is meant to be downloaded from its Github repository, either by 
+cloning or downloading a release tarball from the [release page](https://github.com/biodiversitydata-se/amplicon-multi-cutadapt/releases).
+
+After you've downloaded the workflow (and installed the software environment, see above)
+you run the workflow from the root of the amplicon-multi-cutadapt directory
+(where this `README.md` file is located). Since this is a Snakemake workflow
+you need to run the `snakemake` command from the terminal to start it. 
+
+To try it out in practice you can run the following:
+
+```bash
+snakemake --profile test
+```
+
+This will run the workflow on a small test dataset (the actual data is under 
+`test/data/`). The way that the `--profile` flag works is that it allows you to 
+specify a folder containing configuration parameters for snakemake. In this case
+it points to the `test/` subdirectory where the file `config.yaml` specifies the 
+command line options to use with snakemake.
+
+In addition to the `test` profile, the workflow comes with pre-configured 
+profiles for: 
+1) running locally on your own computer
+2) running on HPC clusters with the SLURM workload manager (_e.g._ the UPPMAX cluster), and
+ 
+
+To use them you specify `--profile local` and `--profile slurm` respectively. So
+if you're running on your local computer simply do:
+
+```bash
+snakemake --profile local
+```
+
+and if you're running remotely on a SLURM cluster do:
+
+```bash
+snakemake --profile slurm
+```
+
+### Configuration files
+
+There are a few more configuration parameters you can set that will influence 
+how the workflow runs. The default values are specified in the file `config/config.yaml`:
 
 ```yaml
-data_dir: data
+# DEFAULT CONFIG PARAMS IN config/config.yaml
+cutadapt:
+    threads: 16
+    expected_read_length: 251
+primers:
+    forward:
+        - "CCHGAYATRGCHTTYCCHCG"
+        - "ACCHGAYATRGCHTTYCCHCG"
+        - "GACCHGAYATRGCHTTYCCHCG"
+        - "TGACCHGAYATRGCHTTYCCHCG"
+    reverse:
+        - "CDGGRTGNCCRAARAAYCA"
+        - "TCDGGRTGNCCRAARAAYCA"
+        - "ATCDGGRTGNCCRAARAAYCA"
+        - "GATCDGGRTGNCCRAARAAYCA"
+data_dir: "data"
+sample_list: ""
 ```
 
-By default the workflow searches for fastq files under `data/`.
-One easy way to integrate your data is to symlink a data delivery folder inside
+As you can see, these parameters define _e.g._ the primers to use and the 
+expected read length for your data. If you need to change these settings you can
+either update the `config/config.yaml` file directly, or make a new one and set
+your parameters there. Then you need to point snakemake to the new config file 
+with `--configfile <path-to-your-config-file>.yaml` on the command line.
+
+### Getting your data into the workflow
+
+The workflow searches for fastq files under a directory specified by 
+the `data_dir:` config parameter. By default, this parameter is set to `data/`.
+One easy way to integrate your own data is to symlink a data delivery folder inside
 `data/`. For instance say you have data delivered to a directory
 `/proj/delivery/P00001/`, then you can either symlink that folder into `data/`:
 
@@ -33,13 +101,13 @@ One easy way to integrate your data is to symlink a data delivery folder inside
 ln -s /proj/delivery/P00001 data/
 ```
 
-or you can make a config file that contains:
+or you can make a config file (in `yaml` format) that contains:
 
 ```yaml
 data_dir: /proj/delivery/P00001
 ```
 
-then run the workflow with `--configfile <path-to-your-config>.yaml`
+then run the workflow with `--configfile <path-to-your-config-file>.yaml`
 
 ### Sample list (when you have a lot of samples)
 
@@ -50,17 +118,24 @@ a sample list that specifies each sample and the respective R1/R2 file paths so
 that the workflow doesn't have to do this search on every instance.
 
 To generate such a sample list first make sure you've set the `data_dir` 
-parameter correctly in your configuration file then run:
+parameter correctly so that it points to a directory containing your data, then
+run snakemake with `samples/sample_list.tsv` added to the command. 
+
+Let's try that in practice for the test dataset:
 
 ```bash
-snakemake -j 1 samples/sample_list.tsv
+snakemake --config data_dir=test/data --profile test samples/sample_list.tsv
 ```
+
+Here we specify `data_dir=test/data` on the command line instead of in a config 
+file. This is generally not recommended because config files make it easier to
+track what parameters have been used, but for this example it's ok.
 
 The workflow will now locate all the R1/R2 fastq-files under your configured 
 `data_dir` path and create a tab-delimited file called `sample_list.tsv` under
 the directory `samples/`. Using the `samples/` directory is required at this step,
 as is the `.tsv` suffix, but otherwise you can name the file anything you like, 
-so _e.g._ `snakemake -j 1 samples/my-sample-list.tsv` will also work.
+so _e.g._ `snakemake --profile test samples/my-sample-list.tsv` will also work.
 
 Note that if you're using a separate configuration file you have to update the 
 snakemake call above to include `--configfile <path-to-your-configfile>`.
@@ -71,62 +146,3 @@ workflow use the sample list by updating your configuration file with:
 ```yaml
 sample_list: samples/sample_list.tsv
 ```
-
-## Running the workflow
-
-The basic command for running the workflow is:
-
-```bash
-snakemake -j 4 --use-conda --conda-frontend mamba
-```
-
-This runs snakemake with 4 cores and makes sure that workflow dependencies
-are handled using the `mamba` package manager. If `mamba` is not installed on
-your system you can do so by running `conda install -c conda-forge mamba`.
-
-## Test data
-
-This repo comes with a few test fastq files located in subdirectories under 
-`tests/data/`. To try the workflow out with these files you must first zip them,
-_e.g._ by running:
-
-```bash
-gzip tests/data/*/*.fastq
-```
-
-Then you can do a test run on this data by running:
-
-```
-snakemake --config data_dir=tests/data -j 4 --use-conda --conda-frontend mamba
-```
-
-## Background
-The Insect Biome Atlas (IBA) is an international collaborative effort to 
-describe in detail the insect faunas of two biologically and geologically very 
-different countries: Sweden and Madagascar. The project, one of the largest 
-ongoing insect biodiversity surveys, addresses key questions about the insect 
-diversity: How are insect species distributed across habitats, sites and 
-seasons? What are the key environmental factors shaping insect diversity?
-
-Collection phase lasted a whole year (2019) in each country and was done by 
-means of Malaise traps: 200 in Sweden and 50 in Madagascar. Summing up, the IBA 
-collected more than 8000 insect community samples. Several other types of 
-samples and ecological measurements were also collected at the trap sites to 
-gather a full understanding of the ecological roles of the organisms that 
-comprise the insect biome in these countries. Analysis of the samples include 
-identification of all insects and the organisms they interact with, such as 
-pathogens as well as symbiotic fungi and bacteria - this is achieved by using 
-novel DNA techniques. The results and material collected during the IBA project 
-will be useful for scientists interested in systematics, taxonomy and insect 
-ecology and evolution for many years to come.
-
-In Sweden the Malaise traps were managed by over 100 volunteers, which makes 
-this project one of the largest citizen science projects to take place in 
-Scandinavia.
-
-IBA consortium brings together researchers from many countries and institutes 
-including Natural History Museum in Stockholm, Stockholm University, Swedish 
-University of Agricultural Sciences, Uppsala, SciLifeLab, KTH Royal Institute 
-of Technology Stockholm, Madagascar Biodiversity Center, Jagiellonian 
-University, Krakow, Poland. 
-
