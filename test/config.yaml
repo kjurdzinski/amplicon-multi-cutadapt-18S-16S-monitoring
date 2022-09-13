@@ -1,0 +1,9 @@
+cores: 4
+config: "data_dir=test/data"
+config: "sample_list=test/sample_list.tsv"
+latency-wait: 60
+keep-going: True
+reason: True
+printshellcmds: True
+use-conda: True
+conda-frontend: mamba
