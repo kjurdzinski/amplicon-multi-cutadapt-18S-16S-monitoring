@@ -1,4 +1,4 @@
-name: insect-biome
+name: amp-multi-cut
 channels:
   - conda-forge
   - bioconda
@@ -8,4 +8,4 @@ dependencies:
   - snakemake-minimal=5.32.2
   - pandas=1.2.2
   - multiqc=1.10.1
-  - mamba
+  - mamba=0.25.0
