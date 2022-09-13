@@ -151,7 +151,7 @@ sample_list: samples/sample_list.tsv
 
 The workflow processes fastq files in four consecutive `cutadapt` steps:
 
-1. Discard all reads with the Illumina TruSeq adapters in either the 5' and 3'  
+1. Discard all reads with the Illumina TruSeq adapters in either the 5' or 3'  
    end of sequences. 
 2. Search for and trim primer sequences from the start of reads in R1 and R2
    files using forward and reverse primers, respectively. Remove any untrimmed 
