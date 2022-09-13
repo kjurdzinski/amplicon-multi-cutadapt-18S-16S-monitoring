@@ -34,7 +34,9 @@ snakemake --profile test
 ```
 
 This will run the workflow on a small test dataset (the actual data is under 
-`test/data/`). The way that the `--profile` flag works is that it allows you to 
+`test/data/`). Processed fastq files will be created under `results/cutadapt/`. 
+
+The way that the `--profile` flag works is that it allows you to 
 specify a folder containing configuration parameters for snakemake. In this case
 it points to the `test/` subdirectory where the file `config.yaml` specifies the 
 command line options to use with snakemake.
@@ -146,6 +148,23 @@ workflow use the sample list by updating your configuration file with:
 ```yaml
 sample_list: samples/sample_list.tsv
 ```
+
+## QC of reads
+
+If you want to get a QC report for the processed fastq files you can add the 
+file pattern `results/multiqc_4.html` to the snakemake call, _e.g._:
+
+```bash
+snakemake --profile test results/multiqc_4.html
+```
+
+This will output a MultiQC report at `results/multiqc_4.html`. Here the `_4` part
+means that this is a report for fastq files produced from the 4th cutadapt step
+(see bottom of this README for explanation of the different steps). You may also
+ask for a qc report from either of the other steps (1-3), but be aware that if 
+you've already run the workflow to completion this will force the workflow to 
+rerun the intermediate steps since intermediate fastq files are removed when the
+workflow finishes.
 
 ## Explanation of the cutadapt steps
 
