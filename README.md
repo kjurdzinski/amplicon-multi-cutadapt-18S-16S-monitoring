@@ -34,7 +34,10 @@ snakemake --profile test
 ```
 
 This will run the workflow on a small test dataset (the actual data is under 
-`test/data/`). Processed fastq files will be created under `results/cutadapt/`. 
+`test/data/`). 
+
+**Note**: After the workflow completes, trimmed and processed fastq files 
+can be found under the `results/cutadapt/` directory. 
 
 The way that the `--profile` flag works is that it allows you to 
 specify a folder containing configuration parameters for snakemake. In this case
