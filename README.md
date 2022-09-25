@@ -169,6 +169,101 @@ you've already run the workflow to completion this will force the workflow to
 rerun the intermediate steps since intermediate fastq files are removed when the
 workflow finishes.
 
+## Extracting a subset of samples
+In case you have a data directory with a lot fastq files, and you've generated
+a sample list as described above (by letting the workflow search the contents 
+of a data directory) but you want to run the workflow on only a subset of those 
+samples there's a utility script at `workflow/scripts/extract_samples.py`. This
+script allows you to input:
+
+1. the full sample list
+2. a file with sample names as given by the sequencer (first column) 
+together with user defined sample names (second column) and
+3. a search string
+
+and will then output lines from the full sample list that match with the 
+specified text string. 
+
+For example:
+
+Say you have a data directory `/data/sequencing1/` with the following data:
+```
+└── sequencing1
+    ├── sample0001
+    │   ├── sample0001_R1.fastq.gz
+    │   └── sample0001_R2.fastq.gz
+    ├── sample0002
+    │   ├── sample0002_R1.fastq.gz
+    │   └── sample0002_R2.fastq.gz
+    ...
+    └── sample0010
+        ├── sample0010_R1.fastq.gz
+        └── sample0010_R2.fastq.gz
+```
+
+Running the workflow with:
+
+```bash
+snakemake --config data_dir=data/sequencing1 -j 1 samples/sequencing1.tsv
+```
+
+would then generate a sample list `samples/sequencing1.tsv` like this:
+
+| sample     | R1                                                  | R1_type       | R1_exists | R2                                                 | R2_type       | R2_exists |
+|------------|-----------------------------------------------------|---------------|-----------|----------------------------------------------------|---------------|-----------|
+| sample0001 | data/sequencing1/sample0001/sample0001_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0001/sample0001_R2.fastq.gz | <class 'str'> | yes       |
+| sample0002 | data/sequencing1/sample0002/sample0002_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0002/sample0002_R2.fastq.gz | <class 'str'> | yes       |
+| sample0003 | data/sequencing1/sample0003/sample0003_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0003/sample0003_R2.fastq.gz | <class 'str'> | yes       |
+...
+
+Now, say that you also have a file `sequencing1_sample_info.txt` with the 
+following contents:
+
+```
+SEQUENCING_ID    USER ID
+sample0001       SOIL_MAR_1
+sample0002       SOIL_JUN_1
+sample0003       WATER_MAR_1
+sample0004       WATER_JUN_1
+sample0005       SOIL_MAR_2
+sample0006       SOIL_JUN_2
+sample0007       WATER_MAR_1
+sample0008       WATER_JUN_2
+sample0009       seq1_neg_control1
+sample0010       seq1_neg_control2
+```
+
+Note that this file can have more columns, but sample names in the first column 
+have to be included in the beginning of the sample names as given in the first 
+column of the full sample list (`samples/sequencing1.tsv` in this example).
+
+Now to extract only samples matching `_MAR_` in the `USER ID` column of `sequencing1_sample_info.txt` 
+we can run:
+
+```bash
+python workflow/scripts/extract_samples.py -s samples/sequencing1.tsv -i sequencing1_sample_info.txt -t "_MAR_"
+```
+
+which would output:
+```
+sample  R1      R1_type R1_exists       R2      R2_type R2_exists
+sample0001      data/sequencing1/sample0001/sample0001_R1.fastq.gz      <class 'str'>   yes     data/sequencing1/sample0001/sample0001_R2.fastq.gz      <class 'str'>   yes
+sample0003      data/sequencing1/sample0003/sample0003_R1.fastq.gz      <class 'str'>   yes     data/sequencing1/sample0003/sample0003_R2.fastq.gz      <class 'str'>   yes
+sample0005      data/sequencing1/sample0005/sample0005_R1.fastq.gz      <class 'str'>   yes     data/sequencing1/sample0005/sample0005_R2.fastq.gz      <class 'str'>   yes
+sample0007      data/sequencing1/sample0007/sample0007_R1.fastq.gz      <class 'str'>   yes     data/sequencing1/sample0007/sample0007_R2.fastq.gz      <class 'str'>   yes
+sample0008      data/sequencing1/sample0008/sample0008_R1.fastq.gz      <class 'str'>   yes     data/sequencing1/sample0008/sample0008_R2.fastq.gz      <class 'str'>   yes
+```
+
+The text string you give with `-t` can be a regular expression, for example
+if we want to output all samples except the two negative controls
+(`seq1_neg_control1`, `seq1_neg_control2`) we could run:
+
+```
+python workflow/scripts/extract_samples.py -s samples/sequencing1.tsv -i sequencing1_sample_info.txt -t "_\d$"
+```
+
+where `-t "_\d$"` matches all samples ending in an underscore and a digit.
+
 ## Explanation of the cutadapt steps
 
 The workflow processes fastq files in four consecutive `cutadapt` steps:
