@@ -19,13 +19,15 @@ def main(args):
     sample_df = pd.read_csv(args.sample_list, sep="\t", index_col=0)
     # read NGI delivery list
     ngi_df = pd.read_csv(
-        args.ngi_list, sep="\t", index_col=0, usecols=[0, 1], names=["NGI", "USER"]
+        args.info_file, sep="\t", index_col=0, usecols=[0, 1], names=["NGI", "USER"]
     )
     # extract samples using text search
     ngi_samples = list(ngi_df.loc[ngi_df["USER"].str.contains(regex)].index)
     sys.stderr.write(
-        f"Matched {len(ngi_samples)} samples in {args.ngi_list} using {args.text}\n"
+        f"Matched {len(ngi_samples)} samples in {args.info_file} using {args.text}\n"
     )
+    if len(ngi_samples) == 0:
+        sys.exit("No samples matched, exiting\n")
     # create a regex based on matched sample strings
     sample_regex = re.compile("|".join([f"^{x}" for x in ngi_samples]))
     # slice sample list using sample_regex
@@ -44,9 +46,14 @@ if __name__ == "__main__":
         "-s",
         "--sample_list",
         required=True,
-        help="Sample list file from preprocessing " "workflow",
+        help="Sample list file from preprocessing workflow",
     )
-    parser.add_argument("-n", "--ngi_list", required=True, help="NGI sample info file")
+    parser.add_argument(
+        "-i",
+        "--info_file",
+        required=True,
+        help="Sample info file with user ids in second column",
+    )
     parser.add_argument(
         "-t",
         "--text",
@@ -54,7 +61,7 @@ if __name__ == "__main__":
         help="Regex text to use for searching for file " "names",
     )
     parser.add_argument(
-        "-i", "--ignore_case", action="store_true", help="Ignore case in regex"
+        "--ignore_case", action="store_true", help="Ignore case in regex"
     )
     args = parser.parse_args()
     main(args)
