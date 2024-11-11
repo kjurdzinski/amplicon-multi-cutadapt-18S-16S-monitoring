@@ -33,7 +33,7 @@ config["cutadapt"]["2"] = config["cutadapt"]["expected_read_length"] - len(longe
 config["cutadapt"]["minimum_length"] = min(config["cutadapt"]["1"], config["cutadapt"]["2"])
 
 def get_all_input(wildcards):
-    input = []
+    input = ["results/ampliseq_sample_sheet.tsv"]
     input += expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
             sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
     for step in config["multiqc_steps"]:
@@ -46,7 +46,8 @@ localrules:
     rename_logs, 
     multiqc, 
     output_samples, 
-    zip
+    zip,
+    make_ampliseq_sample_sheet
 
 ruleorder: cutadapt4 > rename_logs
 
@@ -254,3 +255,21 @@ rule multiqc:
             --cl-config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\\d+.fastq.gz'}}]}}" > {log} 2>&1
         rm -f {params.filelist}
         """
+
+rule make_ampliseq_sample_sheet:
+    input:
+        expand(rules.cutadapt4.output, sample=samples.keys(), i=[1, 2])
+    output:
+        "results/ampliseq_sample_sheet.tsv"
+    run:
+        import pandas as pd
+        import os
+        data = {}
+        for sample in samples.keys():
+            data[sample] = {
+                "forwardReads": os.path.abspath(f"results/cutadapt/{sample}_trim_s4_R1.fastq.gz"),
+                "reverseReads": os.path.abspath(f"results/cutadapt/{sample}_trim_s4_R2.fastq.gz")
+                }
+        df = pd.DataFrame(data).T
+        df.index.name = "sampleID"
+        df.to_csv(output[0], sep="\t")
