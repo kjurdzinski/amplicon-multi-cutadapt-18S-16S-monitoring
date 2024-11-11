@@ -251,6 +251,6 @@ rule multiqc:
         echo {input} | tr ' ' '\n' > {params.filelist}
         multiqc -f -n {params.n} -o {params.outdir} -l {params.filelist} \
             --title "{params.title}" \
-            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\\d+.fastq.gz'}}]}}" > {log} 2>&1
+            --cl-config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\\d+.fastq.gz'}}]}}" > {log} 2>&1
         rm -f {params.filelist}
         """
