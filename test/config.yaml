@@ -3,3 +3,4 @@ config: "data_dir=test/data"
 config: "sample_list=test/sample_list.tsv"
 keep-going: True
 printshellcmds: True
+rerun-triggers: "mtime"
