@@ -8,14 +8,9 @@ properties:
   cutadapt:
     type: object
     default:
-      threads: 4
       minimum_length: 228
       expected_read_length: 251
     properties:
-      threads:
-        type: integer
-        description: "Threads to use for cutadapt"
-        minimum: 1
       minimum_length:
         type: integer
         description: "Minimum read length to keep for cutadapt"
@@ -54,3 +49,10 @@ properties:
     type: string
     default: ""
     description: "Sample file list"
+  multiqc_steps:
+    type: array
+    items:
+      type: integer
+      enum: [1,2,3,4]
+    default: [4]
+    description: "After which cutadapt steps do you want a multiqc report?"
