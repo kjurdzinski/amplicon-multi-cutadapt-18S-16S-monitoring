@@ -4,8 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.8
-  - snakemake-minimal=5.32.2
-  - pandas=1.2.2
-  - multiqc=1.10.1
-  - mamba=0.25.0
+  - python
+  - snakemake-minimal
+  - pandas
+  - snakemake-executor-plugin-slurm
