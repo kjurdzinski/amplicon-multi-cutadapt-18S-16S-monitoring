@@ -1,0 +1,22 @@
+default_resources:
+  slurm_account: <your-slurm-account>
+  slurm_partition: shared
+  cpus_per_task: 10
+  runtime: 120
+  tasks: f"{threads}"
+  mem_mb: 888
+
+set_resources:
+  fastqc:
+    tasks: 4
+    mem_mb: 3552
+
+# The settings below define command line flags for snakemake
+keep-going: True
+printshellcmds: True
+rerun-triggers: mtime
+rerun-incomplete: True
+local-cores: 1
+jobs: 100
+latency-wait: 5
+executor: slurm
