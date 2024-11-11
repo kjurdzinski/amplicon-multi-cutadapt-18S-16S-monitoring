@@ -1,6 +1,6 @@
 cutadapt:
-    threads: 16
     expected_read_length: 251
+    minimum_length: 228
 primers:
     forward:
         - "CCHGAYATRGCHTTYCCHCG"
@@ -14,3 +14,5 @@ primers:
         - "GATCDGGRTGNCCRAARAAYCA"
 data_dir: "data"
 sample_list: ""
+# After which cutadapt steps do you want a multiqc report?
+multiqc_steps: [4]
