@@ -2,7 +2,7 @@
 default-resources:
   slurm_account: <your-slurm-account>
   slurm_partition: shared
-  cpus_per_task: 10
+  cpus_per_task: 1
   runtime: 120
   tasks: f"{threads}"
   mem_mb: 888
