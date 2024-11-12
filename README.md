@@ -36,7 +36,8 @@ curl -fsSL https://pixi.sh/install.sh | bash
 
 After installation, restart your terminal and run `pixi --version` to verify that the installation was successful.
 
-> [!TIP] If the `pixi --version` command does not work, you may need to manually
+> [!TIP] 
+> If the `pixi --version` command does not work, you may need to manually
 > add the path to the pixi binary to your `PATH` environment variable. Open the
 > file `~/.bashrc` (or `~/.zshrc` if using zsh) in a text editor and add the
 > following line to the end of the file:
