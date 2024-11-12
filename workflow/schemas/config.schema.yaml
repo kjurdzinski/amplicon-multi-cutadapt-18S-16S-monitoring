@@ -48,3 +48,7 @@ properties:
       enum: [1,2,3,4]
     default: [4]
     description: "After which cutadapt steps do you want a multiqc report?"
+  ampliseq_sample_sheet:
+    type: string
+    default: "results/ampliseq_sample_sheet.tsv"
+    description: "Sample sheet for AmpliSeq data"

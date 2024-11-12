@@ -12,5 +12,5 @@ primers:
         - "GATCDGGRTGNCCRAARAAYCA"
 data_dir: "data"
 sample_list: ""
-# After which cutadapt steps do you want a multiqc report?
 multiqc_steps: [4]
+ampliseq_sample_sheet: "results/ampliseq_sample_sheet.tsv"
