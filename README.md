@@ -9,6 +9,12 @@ using `cutadapt`.
   - [Using conda](#using-conda)
 - [Running the workflow](#running-the-workflow)
 - [Configuration](#configuration)
+- [Getting your data into the workflow](#getting-your-data-into-the-workflow)
+  - [Using the `data` directory](#using-the-data-directory)
+  - [Using a sample list](#using-a-sample-list)
+- [QC of reads](#qc-of-reads)
+- [Extracting a subset of samples](#extracting-a-subset-of-samples)
+- [Explanation of the cutadapt steps](#explanation-of-the-cutadapt-steps)
 
 ## Installation
 
