@@ -4,75 +4,119 @@ This repository hosts a snakemake workflow for trimming and QC
 of paired-end fastq files. The trimming is done in four steps
 using `cutadapt`.
 
+- [Installation](#installation)
+  - [Using pixi](#using-pixi-recommended)
+  - [Using conda](#using-conda)
+- [Running the workflow](#running-the-workflow)
+- [Configuration](#configuration)
+
 ## Installation
 
-Use conda to create and activate the software environment required to start the 
-workflow:
+First clone the repository to a location on your system:
+    
+```bash
+git clone git@github.com:insect-biome-atlas/amplicon-multi-cutadapt.git
+```
+
+Then `cd` into the repository:
+
+```bash
+cd amplicon-multi-cutadapt
+```
+
+The software required to run this workflow can be installed with either [pixi](https://pixi.sh/latest) or [conda](https://docs.conda.io/en/latest/miniconda.html).
+
+### Using pixi (recommended)
+
+If you have not installed pixi yet, you can do so by running the following command:
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+After installation, restart your terminal and run `pixi --version` to verify that the installation was successful.
+
+> [!TIP] If the `pixi --version` command does not work, you may need to manually
+> add the path to the pixi binary to your `PATH` environment variable. Open the
+> file `~/.bashrc` (or `~/.zshrc` if using zsh) in a text editor and add the
+> following line to the end of the file:
+> ```bash
+> export PATH="$PATH:$HOME/.pixi/bin"
+> ```
+> Save the file and run `source ~/.bashrc` (or `source ~/.zshrc` if using zsh) to
+> apply the changes.
+
+After installing pixi, you can create and activate the software environment
+required to start the workflow by running the following command from the root of
+the repository:
+
+```bash
+pixi shell
+```
+
+You should see `(amplicon-multi-cutadapt)` prepended to your terminal prompt,
+which indicates that the software environment has been activated.
+
+### Using conda
+
+To use conda to install the software environment, you need to have conda
+installed. Follow the instructions for your operating system
+[here](https://docs.anaconda.com/miniconda/#quick-command-line-install).
+
+Next, you can create and activate the software environment by running the
+following commands from the root of the repository:
 
 ```bash
 conda env create -f environment.yml
 conda activate amp-multi-cut
 ```
 
-**Note**: If you don't have conda installed, please visit the [conda docs](https://docs.conda.io/en/latest/miniconda.html)
-for instructions and installation links.
-
 ## Running the workflow
 
-This workflow is meant to be downloaded from its Github repository, either by 
-cloning or downloading a release tarball from the [release page](https://github.com/biodiversitydata-se/amplicon-multi-cutadapt/releases).
-
-After you've downloaded the workflow (and installed the software environment, see above)
+After you've downloaded the workflow and installed the software environment
 you run the workflow from the root of the amplicon-multi-cutadapt directory
-(where this `README.md` file is located). Since this is a Snakemake workflow
-you need to run the `snakemake` command from the terminal to start it. 
+(where this `README.md` file is located). 
 
-To try it out in practice you can run the following:
+> [!TIP] 
+> If you are running this workflow on a cluster with the SLURM workload
+> manager, see additional tips in the [slurm/README.md](slurm/README.md) file.
+> If you are running on the Dardel HPC cluster, see specific instruction in
+> the [dardel/README.md](dardel/README.md) file.
 
-```bash
-snakemake --profile test
-```
+Software dependencies are managed by snakemake either using `conda` or
+`apptainer` and you select which one to use by specifying `--sdm apptainer` or 
+`--sdm conda` on the command line.
 
-This will run the workflow on a small test dataset (the actual data is under 
-`test/data/`). 
-
-**Note**: After the workflow completes, trimmed and processed fastq files 
-can be found under the `results/cutadapt/` directory. 
-
-The way that the `--profile` flag works is that it allows you to 
-specify a folder containing configuration parameters for snakemake. In this case
-it points to the `test/` subdirectory where the file `config.yaml` specifies the 
-command line options to use with snakemake.
-
-In addition to the `test` profile, the workflow comes with pre-configured 
-profiles for: 
-1) running locally on your own computer
-2) running on HPC clusters with the SLURM workload manager (_e.g._ the UPPMAX cluster)
- 
-
-To use them you specify `--profile local` and `--profile slurm` respectively. So
-if you're running on your local computer simply do:
+To run the workflow on a small test dataset you can do:
 
 ```bash
-snakemake --profile local
+snakemake --profile test --sdm apptainer
 ```
 
-and if you're running remotely on a SLURM cluster do:
+or
 
 ```bash
-snakemake --profile slurm
+snakemake --profile test --sdm conda
 ```
 
-### Configuration files
+Follow the instructions on how to [configure](#configuration) and [get your data
+into the workflow](#getting-your-data-into-the-workflow) below, then either run the 
+workflow on your local computer using:
 
-There are a few more configuration parameters you can set that will influence 
-how the workflow runs. The default values are specified in the file `config/config.yaml`:
+```bash
+snakemake --profile local --sdm apptainer # or --sdm conda
+```
+
+or follow the instructions in the [dardel/README.md](dardel/README.md) or
+[slurm/README.md](slurm/README.md) files to run the workflow on a cluster.
+
+## Configuration
+
+You can configure the workflow by editing the `config/config.yaml` file. This
+file contains the following default settings:
 
 ```yaml
-# DEFAULT CONFIG PARAMS IN config/config.yaml
-cutadapt:
-    threads: 16
-    expected_read_length: 251
+expected_read_length: 251
 primers:
     forward:
         - "CCHGAYATRGCHTTYCCHCG"
@@ -86,35 +130,55 @@ primers:
         - "GATCDGGRTGNCCRAARAAYCA"
 data_dir: "data"
 sample_list: ""
+multiqc_steps: [4]
 ```
 
-As you can see, these parameters define _e.g._ the primers to use and the 
-expected read length for your data. If you need to change these settings you can
-either update the `config/config.yaml` file directly, or make a new one and set
-your parameters there. Then you need to point snakemake to the new config file 
-with `--configfile <path-to-your-config-file>.yaml` on the command line.
+The `expected_read_length` defines the expected read length after trimming. In
+the final cutadapt step, `R1` and `R2` reads are trimmed to a fixed length
+calculated by subtracting the length of the longest forward or reverse primer,
+respectively, from this value.
 
-### Getting your data into the workflow
+The `primers` section contains lists of forward and reverse primers used to
+sequence your data.
 
-The workflow searches for fastq files under a directory specified by 
-the `data_dir:` config parameter. By default, this parameter is set to `data/`.
-One easy way to integrate your own data is to symlink a data delivery folder inside
-`data/`. For instance say you have data delivered to a directory
-`/proj/delivery/P00001/`, then you can either symlink that folder into `data/`:
+The `data_dir` parameter specifies the directory where the workflow will look
+for fastq files matching the file pattern `*R1*.fastq.gz` and `*R2*.fastq.gz` in
+any subdirectory.
+
+Alternatively, you can set the `sample_list` parameter to point to a
+tab-separated file containing a list of samples and their respective R1/R2 file
+paths. This file should have the following format:
+
+| sample | R1 | R2 |
+|--------|----|----|
+| sample1 | /path/to/sample1_R1.fastq.gz | /path/to/sample1_R2.fastq.gz |
+| sample2 | /path/to/sample2_R1.fastq.gz | /path/to/sample2_R2.fastq.gz |
+
+The `multiqc_steps` parameter specifies for which cutadapt step(s) to generate
+a MultiQC report. The default value `[4]` generates a report for the final
+cutadapt step only. To generate a report for each step, set this parameter to
+`[1, 2, 3, 4]` or leave it empty `[]` to disable MultiQC reports.
+
+## Getting your data into the workflow
+
+### Using the `data` directory
+
+One easy way to integrate your own data is to symlink a data delivery folder
+inside `data/` (the default for `data_dir`). For instance say you have data
+delivered to a directory `/proj/delivery/P00001/`, then you can either symlink
+that folder into `data/`:
 
 ```bash
 ln -s /proj/delivery/P00001 data/
 ```
 
-or you can make a config file (in `yaml` format) that contains:
+or you can edit `data_dir` in [config/config.yaml](config/config.yaml) to:
 
 ```yaml
 data_dir: /proj/delivery/P00001
 ```
 
-then run the workflow with `--configfile <path-to-your-config-file>.yaml`
-
-### Sample list (when you have a lot of samples)
+### Using a sample list
 
 If you have **a lot** of samples it can take a long time for the workflow to
 locate each R1/R2 input file. This can slow down even so called dry-runs of the 
@@ -122,52 +186,48 @@ workflow and make it difficult to work with. In that case you may want to create
 a sample list that specifies each sample and the respective R1/R2 file paths so
 that the workflow doesn't have to do this search on every instance.
 
-To generate such a sample list first make sure you've set the `data_dir` 
-parameter correctly so that it points to a directory containing your data, then
-run snakemake with `samples/sample_list.tsv` added to the command. 
-
-Let's try that in practice for the test dataset:
+To generate such a sample list first we can set the `data_dir` parameter on the
+fly and generate a sample list with snakemake. If you have data in
+`/proj/delivery/P00001` and you want to generate a sample list called
+`samples/P00001.tsv` you can do:
 
 ```bash
-snakemake --config data_dir=test/data --profile test samples/sample_list.tsv
+snakemake --config data_dir=/proj/delivery/P00001 --profile local samples/P00001.tsv
 ```
 
-Here we specify `data_dir=test/data` on the command line instead of in a config 
-file. This is generally not recommended because config files make it easier to
-track what parameters have been used, but for this example it's ok.
+The workflow will locate all the R1/R2 fastq-files under your configured
+`/proj/delivery/P00001` and create a tab-delimited file called
+`samples/P00001.tsv`. Using the `samples/` directory is required at this step,
+as is the `.tsv` suffix, but otherwise you can name the file anything you like,
+so _e.g._ `samples/my-sample-list.tsv` will also work whereas
+`samples/my-sample-list.txt` or `my-sample-list.tsv` will not.
 
-The workflow will now locate all the R1/R2 fastq-files under your configured 
-`data_dir` path and create a tab-delimited file called `sample_list.tsv` under
-the directory `samples/`. Using the `samples/` directory is required at this step,
-as is the `.tsv` suffix, but otherwise you can name the file anything you like, 
-so _e.g._ `snakemake --profile test samples/my-sample-list.tsv` will also work.
-
-Note that if you're using a separate configuration file you have to update the 
-snakemake call above to include `--configfile <path-to-your-configfile>`.
-
-You only have to generate this sample list once, and then you can make the 
-workflow use the sample list by updating your configuration file with:
+You only have to generate this sample list once, and then you can make the
+workflow use the sample list by updating the `sample_list` config parameter in
+[config/config.yaml](config/config.yaml). Using the example above it would be:
 
 ```yaml
-sample_list: samples/sample_list.tsv
+sample_list: samples/P00001.tsv
 ```
+
+The sample list generated using this method will contain the additional columns
+`R1_type`, `R1_exists`, `R2_type`, and `R2_exists` which are used by the
+workflow to check if the files are valid. The `R1_type` and `R2_type` columns
+should only contain `<class 'str'>` and the `R1_exists` and `R2_exists` columns
+should contain `yes`. If the files are not found or not readable the `R1_exists`
+and `R2_exists` columns will contain `no`.
 
 ## QC of reads
 
-If you want to get a QC report for the processed fastq files you can add the 
-file pattern `results/multiqc_4.html` to the snakemake call, _e.g._:
+The workflow generates a MultiQC report `results/multiqc_4.html` for the final
+cutadapt step by default. You may also configure the `multiqc_steps` config
+parameter to get a qc report from either of the other steps (1-3).
 
-```bash
-snakemake --profile test results/multiqc_4.html
-```
-
-This will output a MultiQC report at `results/multiqc_4.html`. Here the `_4` part
-means that this is a report for fastq files produced from the 4th cutadapt step
-(see bottom of this README for explanation of the different steps). You may also
-ask for a qc report from either of the other steps (1-3), but be aware that if 
-you've already run the workflow to completion this will force the workflow to 
-rerun the intermediate steps since intermediate fastq files are removed when the
-workflow finishes.
+> [!IMPORTANT] 
+> Be aware that if you've already run the workflow to completion and you then
+> update the `multiqc_steps` parameter with additional steps this will force the
+> workflow to rerun the intermediate steps since intermediate fastq files are
+> removed when the workflow finishes.
 
 ## Extracting a subset of samples
 In case you have a data directory with a lot fastq files, and you've generated
@@ -204,7 +264,7 @@ Say you have a data directory `/data/sequencing1/` with the following data:
 Running the workflow with:
 
 ```bash
-snakemake --config data_dir=data/sequencing1 -j 1 samples/sequencing1.tsv
+snakemake --config data_dir=data/sequencing1 --profile local samples/sequencing1.tsv
 ```
 
 would then generate a sample list `samples/sequencing1.tsv` like this:
@@ -214,7 +274,8 @@ would then generate a sample list `samples/sequencing1.tsv` like this:
 | sample0001 | data/sequencing1/sample0001/sample0001_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0001/sample0001_R2.fastq.gz | <class 'str'> | yes       |
 | sample0002 | data/sequencing1/sample0002/sample0002_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0002/sample0002_R2.fastq.gz | <class 'str'> | yes       |
 | sample0003 | data/sequencing1/sample0003/sample0003_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0003/sample0003_R2.fastq.gz | <class 'str'> | yes       |
-...
+| ...       | ...                                                 | ...           | ...       | ...                                                | ...           | ...       |
+| sample0010 | data/sequencing1/sample0010/sample0010_R1.fastq.gz  | <class 'str'> | yes       | data/sequencing1/sample0010/sample0010_R2.fastq.gz | <class 'str'> | yes       |
 
 Now, say that you also have a file `sequencing1_sample_info.txt` with the 
 following contents:
@@ -258,7 +319,7 @@ The text string you give with `-t` can be a regular expression, for example
 if we want to output all samples except the two negative controls
 (`seq1_neg_control1`, `seq1_neg_control2`) we could run:
 
-```
+```bash
 python workflow/scripts/extract_samples.py -s samples/sequencing1.tsv -i sequencing1_sample_info.txt -t "_\d$"
 ```
 
