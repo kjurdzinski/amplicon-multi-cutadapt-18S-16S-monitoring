@@ -9,6 +9,9 @@ if os.path.exists("config/config.yaml"):
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
+wildcard_constraints:
+    sheet = config["ampliseq_sample_sheet"]
+
 # Read samples from file or glob from data dir
 if os.path.exists(config["sample_list"]):
     samples=read_sample_list(config["sample_list"])
@@ -33,7 +36,9 @@ config["cutadapt"] = {"1": config["expected_read_length"] - len(longest_primer(c
 config["cutadapt"]["minimum_length"] = min(config["cutadapt"]["1"], config["cutadapt"]["2"])
 
 def get_all_input(wildcards):
-    input = ["results/ampliseq_sample_sheet.tsv"]
+    input = []
+    if config["ampliseq_sample_sheet"] != "":
+        input.append(config["ampliseq_sample_sheet"])
     input += expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
             sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
     for step in config["multiqc_steps"]:
@@ -49,7 +54,7 @@ localrules:
     zip,
     make_ampliseq_sample_sheet
 
-ruleorder: cutadapt4 > rename_logs
+ruleorder: cutadapt4 > zip > rename_logs
 
 rule all:
     input:
@@ -238,7 +243,7 @@ rule multiqc:
             sample=samples.keys(), i=[1,2]),
     output:
         "{dir}/multiqc_{s}.html"
-    log: "logs/{dir}multiqc/multiqc_{s}.log"
+    log: "{dir}/multiqc_{s}.log"
     message: "Generating MultiQC report for step {wildcards.s}"
     params:
         outdir=lambda wildcards, output: os.path.dirname(output[0]),
@@ -260,7 +265,7 @@ rule make_ampliseq_sample_sheet:
     input:
         expand(rules.cutadapt4.output, sample=samples.keys(), i=[1, 2])
     output:
-        "results/ampliseq_sample_sheet.tsv"
+        "{sheet}"
     run:
         import pandas as pd
         import os
