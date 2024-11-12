@@ -11,7 +11,10 @@ set-resources:
   fastqc:
     tasks: 4
     mem_mb: 3552
-
+  cutadapt:
+    tasks: 10
+    mem_mb: 8880
+  
 # The settings below define command line flags for snakemake
 keep-going: True
 printshellcmds: True
