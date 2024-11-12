@@ -1,6 +1,4 @@
-cutadapt:
-    threads: 16
-    expected_read_length: 251
+expected_read_length: 251
 primers:
     forward:
         - "CCHGAYATRGCHTTYCCHCG"
@@ -14,3 +12,5 @@ primers:
         - "GATCDGGRTGNCCRAARAAYCA"
 data_dir: "data"
 sample_list: ""
+multiqc_steps: [4]
+ampliseq_sample_sheet: "results/ampliseq_sample_sheet.tsv"

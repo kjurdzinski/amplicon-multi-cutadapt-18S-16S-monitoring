@@ -1,6 +1,9 @@
+.snakemake
+results
+.pixi
+*.gz
 # pycharm files
 .idea
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -130,3 +133,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+# pixi environments
+.pixi
+*.egg-info

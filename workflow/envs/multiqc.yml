@@ -1,6 +1,7 @@
-name: fastqc
+name: multiqc
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - fastqc
+  - python
+  - multiqc
