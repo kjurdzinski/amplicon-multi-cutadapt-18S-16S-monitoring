@@ -1,4 +1,4 @@
-sample	R1	R1_type	R1_exists	R2	\R2_type	\R2_exists
+sample	R1	R1_type	R1_exists	R2	R2_type	R2_exists
 P19506_1005	test/data/P19506_1005/P19506_1005_R1_001.fastq.gz	<class 'str'>	yes	test/data/P19506_1005/P19506_1005_R2_001.fastq.gz	<class 'str'>	yes
 P19506_1006	test/data/P19506_1006/P19506_1006_R1_001.fastq.gz	<class 'str'>	yes	test/data/P19506_1006/P19506_1006_R2_001.fastq.gz	<class 'str'>	yes
 P19506_1007	test/data/P19506_1007/P19506_1007_R1_001.fastq.gz	<class 'str'>	yes	test/data/P19506_1007/P19506_1007_R2_001.fastq.gz	<class 'str'>	yes
