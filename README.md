@@ -97,13 +97,13 @@ Software dependencies are managed by snakemake either using `conda` or
 To run the workflow on a small test dataset you can do:
 
 ```bash
-snakemake --profile test --sdm apptainer
+snakemake --sdm apptainer --profile test 
 ```
 
 or
 
 ```bash
-snakemake --profile test --sdm conda
+snakemake --sdm conda --profile test 
 ```
 
 Follow the instructions on how to [configure](#configuration) and [get your data
@@ -138,6 +138,7 @@ primers:
 data_dir: "data"
 sample_list: ""
 multiqc_steps: [4]
+ampliseq_sample_sheet: "results/ampliseq_sample_sheet.tsv"
 ```
 
 The `expected_read_length` defines the expected read length after trimming. In
@@ -165,6 +166,8 @@ The `multiqc_steps` parameter specifies for which cutadapt step(s) to generate
 a MultiQC report. The default value `[4]` generates a report for the final
 cutadapt step only. To generate a report for each step, set this parameter to
 `[1, 2, 3, 4]` or leave it empty `[]` to disable MultiQC reports.
+
+The `ampliseq_sample_sheet` parameter specifies the path a file that will be created by the workflow containing the sample names and the corresponding primer sequences used for trimming. This file can be used as input for the [AmpliSeq](https://nf-co.re/ampliseq) workflow.
 
 ## Getting your data into the workflow
 
