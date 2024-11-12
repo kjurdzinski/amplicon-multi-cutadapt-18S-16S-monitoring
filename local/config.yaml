@@ -2,3 +2,4 @@ cores: 1
 keep-going: True
 printshellcmds: True
 rerun-triggers: "mtime"
+apptainer-args: "-B $(pwd)"
