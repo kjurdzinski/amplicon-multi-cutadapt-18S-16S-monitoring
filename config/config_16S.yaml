@@ -1,0 +1,27 @@
+cutadapt:
+    threads: 20
+    expected_read_length: 301
+    adapter_forward: "ACACTCTTTCCCTACACGACGCTCTTCCGATCT"
+    adapter_reverse: "GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
+primers:
+    forward:
+        - "CCTACGGGNGGCWGCAG"
+        - "TCCTACGGGNGGCWGCAG"
+        - "GTCCTACGGGNGGCWGCAG"
+        - "AGTCCTACGGGNGGCWGCAG"
+        - "GAGTCCTACGGGNGGCWGCAG"
+        - "AGAGTCCTACGGGNGGCWGCAG"
+        - "TAGAGTCCTACGGGNGGCWGCAG"
+        - "CTAGAGTCCTACGGGNGGCWGCAG"
+    reverse:
+        - "GACTACHVGGGTATCTAATCC"
+        - "GGACTACHVGGGTATCTAATCC"
+        - "TGGACTACHVGGGTATCTAATCC"
+        - "CTGGACTACHVGGGTATCTAATCC"
+        - "ACTGGACTACHVGGGTATCTAATCC"
+        - "TACTGGACTACHVGGGTATCTAATCC"
+        - "CTACTGGACTACHVGGGTATCTAATCC"
+        - "ACTACTGGACTACHVGGGTATCTAATCC"
+data_dir: "/proj/snic2020-6-126/projects/plankton_monitoring/seq_2015_2017_analysis/raw_reads/16S"
+sample_list: ""
+# output_dir: "../cutadapt_output/16S"

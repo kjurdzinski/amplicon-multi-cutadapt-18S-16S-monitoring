@@ -2,15 +2,24 @@ import os
 from snakemake.utils import validate
 from scripts.common import glob_samples, read_sample_list, shortest_primer, longest_primer
 
-# Set default config file
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3:4.9.2"
+
 if os.path.exists("config/config.yaml"):
-    configfile: "config/config.yaml"
+        configfile: "config/config.yaml"
+
+# Set default config file
+# if "--configfile" in config:
+#     configfile: config["--configfile"]
+# else:
+#     if os.path.exists("config/config.yaml"):
+#         configfile: "config/config.yaml"
 
 # validate config
 validate(config, "schemas/config.schema.yaml", set_default=True)
 
-wildcard_constraints:
-    sheet = config["ampliseq_sample_sheet"]
+# define output folder from config file
 
 # Read samples from file or glob from data dir
 if os.path.exists(config["sample_list"]):
@@ -28,37 +37,27 @@ Your configured 'data_dir' is {config["data_dir"]}/
 ####################
 """)
 
+# make sure TMPDIR is set
+try:
+    os.environ["TMPDIR"]
+except KeyError:
+    os.environ["TMPDIR"] = "temp"
+    os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
 # calculate read length after trimming
-config["cutadapt"] = {"1": config["expected_read_length"] - len(longest_primer(config["primers"]["forward"])),
-                      "2": config["expected_read_length"] - len(longest_primer(config["primers"]["reverse"]))}
+config["cutadapt"]["1"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["forward"]))
+config["cutadapt"]["2"] = config["cutadapt"]["expected_read_length"] - len(longest_primer(config["primers"]["reverse"]))
 
 # calculate minimum read length as the shortest of the R1/R2 trimmed lengths
 config["cutadapt"]["minimum_length"] = min(config["cutadapt"]["1"], config["cutadapt"]["2"])
 
-def get_all_input(wildcards):
-    input = []
-    if config["ampliseq_sample_sheet"] != "":
-        input.append(config["ampliseq_sample_sheet"])
-    input += expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
-            sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
-    for step in config["multiqc_steps"]:
-        input.append(f"results/multiqc_{step}.html")
-    return input
-
-
-localrules: 
-    all, 
-    rename_logs, 
-    multiqc, 
-    output_samples, 
-    zip,
-    make_ampliseq_sample_sheet
-
-ruleorder: cutadapt4 > zip > rename_logs
+localrules: all, rename_logs, multiqc, output_samples
+ruleorder: cutadapt4 > rename_logs
 
 rule all:
     input:
-        get_all_input
+        expand("results/cutadapt/{sample}_trim_s4_R{i}{suff}",
+            sample=samples.keys(), i=[1,2], suff=[".fastq.gz", "_fastqc.zip"])
 
 rule qc_report:
     input:
@@ -112,19 +111,24 @@ rule cutadapt1:
         R2=temp("results/cutadapt/{sample}_trim_s1_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s1_R2.log"
     message: "Step 1 for {wildcards.sample}: Removing reads with adapters"
-    threads: 10
+    threads: config["cutadapt"]["threads"]
     conda: "envs/cutadapt.yml"
-    container: "docker://quay.io/biocontainers/cutadapt:4.9--py38h0020b31_2"
     params:
+        tmp1="$TMPDIR/{sample}_trim_s1_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s1_R2.fastq.gz",
         overlap=12,
-        minimum_length=config["cutadapt"]["minimum_length"]
+        minimum_length=config["cutadapt"]["minimum_length"],
+        adapter_F=config["cutadapt"]["adapter_forward"],
+        adapter_R=config["cutadapt"]["adapter_reverse"]
     resources:
-        tasks=10
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
-        cutadapt --discard-trimmed -b AGATCGGAAGAG -B AGATCGGAAGAG -j {resources.tasks} \
-            -o {output.R1} -p {output.R2} -O {params.overlap} \
+        cutadapt --discard-trimmed -b {params.adapter_F} -B {params.adapter_R} -j {threads} \
+            -o {params.tmp1} -p {params.tmp2} -O {params.overlap} \
             -m {params.minimum_length} {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
         """
 
 rule cutadapt2:
@@ -140,20 +144,23 @@ rule cutadapt2:
         R2=temp("results/cutadapt/{sample}_trim_s2_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s2_R2.log"
     message: "Step 2 for {wildcards.sample}: Keeping reads with primers at 5'"
-    threads: 10
+    threads: config["cutadapt"]["threads"]
     params:
         fw_adap=" ".join([f"-g ^{g}" for g in config["primers"]["forward"]]),
         rv_adap=" ".join([f"-G ^{G}" for G in config["primers"]["reverse"]]),
+        tmp1="$TMPDIR/{sample}_trim_s2_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s2_R2.fastq.gz",
         minimum_length=config["cutadapt"]["minimum_length"]
     conda: "envs/cutadapt.yml"
-    container: "docker://quay.io/biocontainers/cutadapt:4.9--py38h0020b31_2"
     resources:
-        tasks=10
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
-        cutadapt --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
-            {params.rv_adap} -j {resources.tasks} -o {output.R1} -p {output.R2} \
+        cutadapt --match-read-wildcards --discard-untrimmed --no-indels -e 0 {params.fw_adap} \
+            {params.rv_adap} -j {threads} -o {params.tmp1} -p {params.tmp2} \
             -m {params.minimum_length} {input.R1} {input.R2} >{log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}
         """
 
 rule cutadapt3:
@@ -168,22 +175,25 @@ rule cutadapt3:
         R2=temp("results/cutadapt/{sample}_trim_s3_R2.fastq.gz")
     log: "logs/cutadapt/{sample}_trim_s3_R2.log"
     message: "Step 3 for {wildcards.sample}: Remove reads with primers anywhere else"
-    threads: 10
+    threads: config["cutadapt"]["threads"]
     conda: "envs/cutadapt.yml"
-    container: "docker://quay.io/biocontainers/cutadapt:4.9--py38h0020b31_2"
     params:
         shortest_fw=shortest_primer(config["primers"]["forward"]),
         shortest_rv=shortest_primer(config["primers"]["reverse"]),
+        tmp1="$TMPDIR/{sample}_trim_s3_R1.fastq.gz",
+        tmp2="$TMPDIR/{sample}_trim_s3_R2.fastq.gz",
         overlap=min(len(shortest_primer(config["primers"]["forward"])),
                     len(shortest_primer(config["primers"]["reverse"]))),
         minimum_length=config["cutadapt"]["minimum_length"]
     resources:
-        tasks=10
+        runtime = lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
-        cutadapt --discard-trimmed -j {resources.tasks} -b {params.shortest_fw} \
-            -B {params.shortest_rv} -o {output.R1} -p {output.R2} -O {params.overlap} \
+        cutadapt --discard-trimmed -j {threads} -b {params.shortest_fw} \
+            -B {params.shortest_rv} -o {params.tmp1} -p {params.tmp2} -O {params.overlap} \
             -m {params.minimum_length} {input.R1} {input.R2} > {log} 2>&1
+        mv {params.tmp1} {output.R1}
+        mv {params.tmp2} {output.R2}        
         """
 
 rule cutadapt4:
@@ -194,17 +204,18 @@ rule cutadapt4:
     log:
         "logs/cutadapt/{sample}_trim_s4_R{i}.log"
     message: "Step 4 for {wildcards.sample}_{wildcards.i}: Trim reads to fixed length"
-    threads: 10
+    threads: config["cutadapt"]["threads"]
     conda: "envs/cutadapt.yml"
-    container: "docker://quay.io/biocontainers/cutadapt:4.9--py38h0020b31_2"
     params:
         l=lambda wildcards: config["cutadapt"][wildcards.i],
+        tmp="$TMPDIR/{sample}_trim_s4_R{i}.fastq.gz"
     resources:
-        tasks=10
+        runtime=lambda wildcards, attempt: attempt ** 2 * 30
     shell:
         """
-        cutadapt -j {resources.tasks} --length {params.l} -o {output} \
+        cutadapt -j {threads} --length {params.l} -o {params.tmp} \
             {input} > {log} 2>&1
+        mv {params.tmp} {output}
         """
 
 rule rename_logs:
@@ -226,13 +237,12 @@ rule fastqc:
     log: "logs/fastqc/"+os.path.basename("{prefix}")+".log"
     message: "Fastqc on {wildcards.prefix}"
     conda: "envs/fastqc.yml"
-    container: "docker://quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0"
     resources:
-        tasks = 4
+        runtime = lambda wildcards, attempt: attempt ** 2 * 60 * 1
     threads: 4
     shell:
         """
-        fastqc -q -t {resources.tasks} --noextract {input} > {log} 2>&1
+        fastqc -q -t {threads} --noextract {input} > {log} 2>&1
         """
 
 rule multiqc:
@@ -242,39 +252,19 @@ rule multiqc:
         logs=expand("logs/cutadapt/{sample}_trim_s{{s}}_R{i}.log",
             sample=samples.keys(), i=[1,2]),
     output:
-        "{dir}/multiqc_{s}.html"
-    log: "{dir}/multiqc_{s}.log"
+        "results/multiqc_{s}.html"
+    log: "logs/multiqc/multiqc_{s}.log"
     message: "Generating MultiQC report for step {wildcards.s}"
     params:
         outdir=lambda wildcards, output: os.path.dirname(output[0]),
         filelist="multiqc_{s}.files",
         n="multiqc_{s}.html",
         title="MultiQC report for cutadapt step {s}"
-    conda: "envs/multiqc.yml"
-    container: "docker://multiqc/multiqc"
     shell:
         """
         echo {input} | tr ' ' '\n' > {params.filelist}
         multiqc -f -n {params.n} -o {params.outdir} -l {params.filelist} \
             --title "{params.title}" \
-            --cl-config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\\d+.fastq.gz'}}]}}" > {log} 2>&1
+            --cl_config "{{'extra_fn_clean_exts': [{{'type': 'regex', 'pattern': '_trim_s[1,2,3,4]'}}, {{'type': 'regex', 'pattern': '_\d+.fastq.gz'}}]}}" > {log} 2>&1
         rm -f {params.filelist}
         """
-
-rule make_ampliseq_sample_sheet:
-    input:
-        expand(rules.cutadapt4.output, sample=samples.keys(), i=[1, 2])
-    output:
-        "{sheet}"
-    run:
-        import pandas as pd
-        import os
-        data = {}
-        for sample in samples.keys():
-            data[sample] = {
-                "forwardReads": os.path.abspath(f"results/cutadapt/{sample}_trim_s4_R1.fastq.gz"),
-                "reverseReads": os.path.abspath(f"results/cutadapt/{sample}_trim_s4_R2.fastq.gz")
-                }
-        df = pd.DataFrame(data).T
-        df.index.name = "sampleID"
-        df.to_csv(output[0], sep="\t")

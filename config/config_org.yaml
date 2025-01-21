@@ -1,0 +1,16 @@
+cutadapt:
+    threads: 16
+    expected_read_length: 251
+primers:
+    forward:
+        - "CCHGAYATRGCHTTYCCHCG"
+        - "ACCHGAYATRGCHTTYCCHCG"
+        - "GACCHGAYATRGCHTTYCCHCG"
+        - "TGACCHGAYATRGCHTTYCCHCG"
+    reverse:
+        - "CDGGRTGNCCRAARAAYCA"
+        - "TCDGGRTGNCCRAARAAYCA"
+        - "ATCDGGRTGNCCRAARAAYCA"
+        - "GATCDGGRTGNCCRAARAAYCA"
+data_dir: "data"
+sample_list: ""
